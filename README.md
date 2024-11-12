@@ -25,9 +25,9 @@ This software has the following dependencies, each of which is governed by its o
 
 This software requires **Docker** to build and run. Docker must be installed separately.
 
-- Docker is licensed separately by [Docker, Inc.](https://www.docker.com/legal/licensing).
+- Docker is licensed separately by [Docker, Inc.](https://www.docker.com/).
 - Users are responsible for ensuring compliance with Docker's licensing terms.
-- For more details, refer to [Docker's licensing page](https://www.docker.com/legal/licensing).
+- For more details, refer to [Docker's licensing page](https://docs.docker.com/subscription/desktop-license/).
 
 ## Installation
 

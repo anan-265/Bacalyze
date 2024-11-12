@@ -1,0 +1,18 @@
+COPYRIGHT NOTICE
+
+© (2024-Present) Anantha Venkata Subramanyam G. All rights reserved.
+
+This software, including all source code, documentation, and assets, is protected under the Indian Copyright Act, 1957, and is licensed under the GNU Affero General Public License, Version 3 (AGPL v3.0) or, at your option, any later version. The full text of the AGPL v3.0 license accompanies this distribution in the LICENSE file.
+
+By accessing, using, modifying, or distributing this software, you unconditionally agree to the following legally binding terms and conditions:
+
+Authorized Use, Reproduction, and Redistribution: You are granted the right to use, copy, and redistribute this software in original or modified form, provided that any distribution—including modifications or derivative works—is governed exclusively by the AGPL v3.0 license. Each copy or substantial portion of the software must retain this notice, a complete copy of the AGPL v3.0 license, and full attribution to the original authors.
+
+Modification and Derivative Works: You are permitted to modify this software and create derivative works. However, all such modifications and derivatives must remain solely licensed under the AGPL v3.0 and include this copyright notice. Distribution of any modified software mandates that the complete source code be made available in strict accordance with the AGPL v3.0 provisions.
+
+Public Deployment and Source Code Obligations: Under Section 13 of the AGPL v3.0, if you modify this software and provide it for network or public access, you are legally obligated to make the full, corresponding source code available to third parties under identical AGPL v3.0 terms.
+
+Third-Party Dependencies and License Compliance: This software may include or rely on third-party components, libraries, or dependencies that are governed by separate open-source licenses. Such third-party components are governed solely by their respective licenses, which are included within this distribution or referenced in accompanying documentation. You are legally obligated to comply fully with each third-party license as it pertains to these components, in addition to your obligations under the AGPL v3.0 for this software as a whole.
+
+This notice supplements and does not alter any legally binding terms and conditions established by the AGPL v3.0 license. Compliance with each applicable third-party license is required as a condition of lawful use, distribution, and modification. For further details on your rights and obligations, consult the AGPL v3.0 in the LICENSE file and any accompanying third-party licenses.
+

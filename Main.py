@@ -74,19 +74,46 @@ class UnnamedApp(wx.Frame):
         
         self.label_path.Disable()
         self.browse_labels.Disable()
+        
+        wx.StaticText(panel,label="Load your reference genome:",pos = (20,340))
+        self.ref_path = wx.TextCtrl(panel, pos = (180,340), size = (50,-1))
+        self.browse_ref = wx.Button(panel, label="Browse", pos=(240, 340))
+        self.browse_ref.Bind(wx.EVT_BUTTON, self.on_browse_ref)
+        
+        self.ref_path.Disable()
+        self.browse_ref.Disable()
 
         # Run Button
-        self.run_btn = wx.Button(panel, label="Predict", pos=(20, 330))
+        self.run_btn = wx.Button(panel, label="Predict", pos=(20, 370))
         self.run_btn.Bind(wx.EVT_BUTTON, self.on_run_button)
 
         # Output text area
-        self.output_area = wx.TextCtrl(panel, pos=(20, 380), size=(550, 200), style=wx.TE_MULTILINE | wx.TE_READONLY)
+        self.output_area = wx.TextCtrl(panel, pos=(20, 420), size=(550, 200), style=wx.TE_MULTILINE | wx.TE_READONLY)
+        
+        wx.CallAfter(self.set_licensing_info)
 
         # Window settings
         self.SetTitle("UnnamedApp")
-        self.SetSize((635, 635))
+        self.SetSize((635, 675))
         self.Centre()
+    
+        self.wd = os.getcwd().replace('\\','/')
+        print(self.wd)
 
+    def set_licensing_info(self):
+        self.output_area.SetValue("This software is licensed under the GNU Affero General Public License v3 (AGPL v3).\n"
+        "Dependencies and their respective licenses:\n"
+        "- Python: Python Software Foundation License\n"
+        "- BWA: GPL License\n"
+        "- Fastp: MIT License\n"
+        "- SAMtools: MIT License\n"
+        "- BCFtools: MIT License\n"
+        "- VCFtools: GPL License\n"
+        "- Nextflow: Apache License 2.0\n"
+        "- pandas: BSD 3-Clause License\n"
+        "- scikit-learn: BSD 3-Clause License\n"
+        "Users are responsible for ensuring compliance with each dependency's license.\n")
+    
     def on_read_type_change(self, event):
         # Enable or disable Read 2 controls based on the selected read type
         is_paired_end = self.read_type.GetStringSelection() == "Paired-ended"
@@ -101,6 +128,8 @@ class UnnamedApp(wx.Frame):
         self.browse_pca.Enable(is_custom)
         self.label_path.Enable(is_custom)
         self.browse_labels.Enable(is_custom)
+        self.ref_path.Enable(is_custom)
+        self.browse_ref.Enable(is_custom)
 
     # Method to open file dialog for Read 1
     def on_browse_read1(self, event):
@@ -133,6 +162,12 @@ class UnnamedApp(wx.Frame):
             if fileDialog.ShowModal() == wx.ID_OK:
                 path = fileDialog.GetPath()
                 self.label_path.SetValue(path.replace('\\', '/'))
+                
+    def on_browse_ref(self,event):
+        with wx.FileDialog(self,"Open your reference genome", wildcard="Genome Sequence Files (*.*)|*.*", style = wx.FD_OPEN) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_OK:
+                path = fileDialog.GetPath()
+                self.ref_path.SetValue(path.replace('\\', '/'))
 
     # Method triggered when the Run button is clicked
     def on_run_button(self, event):
@@ -159,6 +194,7 @@ class UnnamedApp(wx.Frame):
         self.custom_model_path = self.model_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
         self.custom_pca_path = self.pca_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
         self.custom_label_path = self.label_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
+        self.custom_ref_path = self.ref_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
 
         if not os.path.exists(self.read_1) or (end_type == "P" and not os.path.exists(self.read_2)):
             wx.CallAfter(self.output_area.AppendText, "Invalid path(s) for reads. Please verify the file paths.\n")
@@ -166,13 +202,14 @@ class UnnamedApp(wx.Frame):
             return
 
         # Set input and output directories
-        input_directory = "./main/input/"
-        output_directory = "./main/output/"
-        custom_directory = "./main/custom/"
+        input_directory = f"{self.wd}/main/input/"
+        output_directory = f"{self.wd}/main/output/"
+        custom_directory = f"{self.wd}/main/custom/"
         
         custom_model_name = os.path.basename(self.custom_model_path) if self.custom_model_path else ""
         custom_pca_name = os.path.basename(self.custom_pca_path) if self.custom_pca_path else ""
         custom_label_name = os.path.basename(self.custom_label_path) if self.custom_label_path else ""
+        custom_ref_name = os.path.basename(self.custom_ref_path) if self.custom_label_path else ""
         
         shutil.copy(self.read_1, input_directory)
         if self.read_2:
@@ -182,13 +219,14 @@ class UnnamedApp(wx.Frame):
             shutil.copy(self.custom_model_path,custom_directory)
             shutil.copy(self.custom_label_path,custom_directory)
             shutil.copy(self.custom_pca_path,custom_directory)
+            shutil.copy(self.custom_ref_path,custom_directory)
             
 
         nextflow_input = "/workspace/input/"
-        reference_sequence = f"/workspace/predefined/reference_genomes/{species_selection}.fasta"
-        model_file = f"{custom_directory}{custom_model_name}" if custom_model_name else f"/workspace/predefined/models/{species_selection}.pkl"
-        pca_file = f"{custom_directory}{custom_pca_name}" if custom_pca_name else f"/workspace/predefined/generalisers/{species_selection}.pkl"
-        labels_file = f"{custom_directory}{custom_label_name}" if custom_label_name else f"/workspace/predefined/label_lists/{species_selection}.txt"
+        reference_sequence = f"/workspace/custom/{custom_ref_name}" if custom_ref_name else f"/workspace/predefined/reference_genomes/{species_selection}.fasta"
+        model_file = f"/workspace/custom/{custom_model_name}" if custom_model_name else f"/workspace/predefined/models/{species_selection}.pkl"
+        pca_file = f"/workspace/custom/{custom_pca_name}" if custom_pca_name else f"/workspace/predefined/generalisers/{species_selection}.pkl"
+        labels_file = f"/workspace/custom/{custom_label_name}" if custom_label_name else f"/workspace/predefined/label_lists/{species_selection}.txt"
         annotation_file = f"/workspace/predefined/reference_annotations/{species_selection}.bed"
         input_1_name = os.path.basename(self.read_1)
         input_1 = f"{nextflow_input}{input_1_name}"
@@ -197,12 +235,12 @@ class UnnamedApp(wx.Frame):
         second_read = f"--read2 {input_2}" if input_2 else ""
         
         # Check if the annotation checkbox is checked
-        annotation_mode = "--mode annotation" if self.annotate_checkbox.IsChecked() else ""
+        annotation_mode = "--mode annotation" if self.annotate_checkbox.IsChecked() and species_selection != "custom" else ""
         
         quality_filter = '15' if self.qual.GetValue() == '' else self.qual.GetValue()
 
         command_run = (
-            f"docker run -v ./main/:/workspace flow_pack nextflow run /workspace/script/main.nf"
+            f"docker run -v {self.wd}/main/:/workspace kani nextflow run /workspace/script/main.nf"
             f" --ref {reference_sequence}"
             f" --read1 {input_1} {second_read}"
             f" --model {model_file}"

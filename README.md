@@ -10,12 +10,12 @@ This software has the following dependencies, each of which is governed by its o
 
 ### System Dependencies:
 - **Python**: Licensed under the [Python Software Foundation License](https://docs.python.org/3/license.html)
-- **BWA**: Licensed under the [GPL License](https://github.com/lh3/bwa/blob/master/README.md#license)
+- **BWA**: Licensed under the [GPL License](https://github.com/lh3/bwa?tab=GPL-3.0-1-ov-file)
 - **Fastp**: Licensed under the [MIT License](https://github.com/OpenGene/fastp/blob/master/LICENSE)
 - **SAMtools**: Licensed under the [MIT License](https://github.com/samtools/samtools/blob/develop/LICENSE)
 - **BCFtools**: Licensed under the [MIT License](https://github.com/samtools/bcftools/blob/develop/LICENSE)
 - **VCFtools**: Licensed under the [GPL License](https://github.com/vcftools/vcftools/blob/master/LICENSE)
-- **Nextflow**: Licensed under the [Apache License 2.0](https://github.com/nextflow-io/nextflow/blob/master/LICENSE)
+- **Nextflow**: Licensed under the [Apache License 2.0](https://github.com/nextflow-io/nextflow/tree/master?tab=Apache-2.0-1-ov-file)
 
 ### Python Packages:
 - **pandas**: Licensed under the [BSD 3-Clause License](https://github.com/pandas-dev/pandas/blob/main/LICENSE)

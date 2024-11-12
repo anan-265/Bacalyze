@@ -155,6 +155,10 @@ class UnnamedApp(wx.Frame):
             "Custom" : "custom"
         }
         species_selection = species_dict[species_string]
+        
+        self.custom_model_path = self.model_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
+        self.custom_pca_path = self.pca_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
+        self.custom_label_path = self.label_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
 
         if not os.path.exists(self.read_1) or (end_type == "P" and not os.path.exists(self.read_2)):
             wx.CallAfter(self.output_area.AppendText, "Invalid path(s) for reads. Please verify the file paths.\n")
@@ -164,15 +168,27 @@ class UnnamedApp(wx.Frame):
         # Set input and output directories
         input_directory = "./main/input/"
         output_directory = "./main/output/"
+        custom_directory = "./main/custom/"
+        
+        custom_model_name = os.path.basename(self.custom_model_path) if self.custom_model_path else ""
+        custom_pca_name = os.path.basename(self.custom_pca_path) if self.custom_pca_path else ""
+        custom_label_name = os.path.basename(self.custom_label_path) if self.custom_label_path else ""
+        
         shutil.copy(self.read_1, input_directory)
         if self.read_2:
             shutil.copy(self.read_2, input_directory)
+        
+        if species_selection == "custom":
+            shutil.copy(self.custom_model_path,custom_directory)
+            shutil.copy(self.custom_label_path,custom_directory)
+            shutil.copy(self.custom_pca_path,custom_directory)
+            
 
         nextflow_input = "/workspace/input/"
         reference_sequence = f"/workspace/predefined/reference_genomes/{species_selection}.fasta"
-        model_file = f"/workspace/predefined/models/{species_selection}.pkl"
-        pca_file = f"/workspace/predefined/generalisers/{species_selection}.pkl"
-        labels_file = f"/workspace/predefined/label_lists/{species_selection}.txt"
+        model_file = f"{custom_directory}{custom_model_name}" if custom_model_name else f"/workspace/predefined/models/{species_selection}.pkl"
+        pca_file = f"{custom_directory}{custom_pca_name}" if custom_pca_name else f"/workspace/predefined/generalisers/{species_selection}.pkl"
+        labels_file = f"{custom_directory}{custom_label_name}" if custom_label_name else f"/workspace/predefined/label_lists/{species_selection}.txt"
         annotation_file = f"/workspace/predefined/reference_annotations/{species_selection}.bed"
         input_1_name = os.path.basename(self.read_1)
         input_1 = f"{nextflow_input}{input_1_name}"

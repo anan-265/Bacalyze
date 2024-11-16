@@ -240,7 +240,7 @@ class UnnamedApp(wx.Frame):
         quality_filter = '15' if self.qual.GetValue() == '' else self.qual.GetValue()
 
         command_run = (
-            f"docker run -v {self.wd}/main/:/workspace kani nextflow run /workspace/script/main.nf"
+            f"docker run --rm -v {self.wd}/main/:/workspace kani nextflow run /workspace/script/main.nf"
             f" --ref {reference_sequence}"
             f" --read1 {input_1} {second_read}"
             f" --model {model_file}"

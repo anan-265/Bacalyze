@@ -5,6 +5,8 @@ import glob
 import time
 import os
 import threading
+import platform
+from win32com.shell import shell, shellcon
 
 class UnnamedApp(wx.Frame):
     def __init__(self, *args, **kw):
@@ -14,92 +16,141 @@ class UnnamedApp(wx.Frame):
         self.InitUI()
         self.read_1 = ""
         self.read_2 = ""
+        self.init_directories()
+    
+    def get_doc_folder(self):
+        if platform.system() == "Windows":
+            try:
+                from win32com.shell import shell, shellcon
+                return shell.SHGetFolderPath(0, shellcon.CSIDL_PERSONAL, None, 0)
+            except ImportError:
+                raise ImportError("win32com is not installed. Install it using 'pip install pywin32'.")
+        else:
+            return os.path.expanduser("~/Documents")
+
+    def init_directories(self):
+        # Define paths
+        self.doc = self.get_doc_folder()
+        self.input_directory = f"{self.doc}/Unnamed/main/input/"
+        self.output_directory = f"{self.doc}/Unnamed/main/output/"
+        self.custom_directory = f"{self.doc}/Unnamed/main/custom/"
+
+        # Create directories if they don't exist
+        os.makedirs(self.input_directory, exist_ok=True)
+        os.makedirs(self.output_directory, exist_ok=True)
+        os.makedirs(self.custom_directory, exist_ok=True)
+
+    def cleanup_directories(self):
+        # Delete all files in input, output, and custom directories
+        for directory in [self.input_directory, self.custom_directory]:
+            files = glob.glob(f"{directory}*")
+            for f in files:
+                try:
+                    os.remove(f)
+                except Exception as e:
+                    print(f"Error deleting {f}: {e}")
 
     def InitUI(self):
         panel = wx.Panel(self)
+        
+        default_font = wx.Font(10, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Segoe UI")
+        self.SetFont(default_font)
+
+        # Main vertical sizer
+        vbox = wx.BoxSizer(wx.VERTICAL)
 
         # Read Type Choice
-        wx.StaticText(panel, label="Select read type:", pos=(20, 20))
-        self.read_type = wx.Choice(panel, choices=["Single-ended", "Paired-ended"], pos=(150, 20))
+        hbox1 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox1.Add(wx.StaticText(panel, label="Select read type:"), flag=wx.RIGHT, border=8)
+        self.read_type = wx.Choice(panel, choices=["Single-ended", "Paired-ended"])
         self.read_type.Bind(wx.EVT_CHOICE, self.on_read_type_change)
+        hbox1.Add(self.read_type)
+        vbox.Add(hbox1, flag=wx.LEFT | wx.TOP, border=10)
 
-        # Path inputs for Read 1 and Read 2 with Browse Buttons
-        wx.StaticText(panel, label="Path to Read1:", pos=(20, 60))
-        self.read1_path = wx.TextCtrl(panel, pos=(150, 60), size=(300, -1))
-        browse_read1 = wx.Button(panel, label="Browse", pos=(460, 60))
+        # Path inputs for Read 1 and Read 2
+        hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox2.Add(wx.StaticText(panel, label="Path to Read1:"), flag=wx.RIGHT, border=8)
+        self.read1_path = wx.TextCtrl(panel, size=(300, -1))
+        browse_read1 = wx.Button(panel, label="Browse")
         browse_read1.Bind(wx.EVT_BUTTON, self.on_browse_read1)
+        hbox2.Add(self.read1_path, flag=wx.RIGHT, border=8)
+        hbox2.Add(browse_read1)
+        vbox.Add(hbox2, flag=wx.LEFT | wx.TOP, border=10)
 
-        wx.StaticText(panel, label="Path to Read2:", pos=(20, 100))
-        self.read2_path = wx.TextCtrl(panel, pos=(150, 100), size=(300, -1))
-        browse_read2 = wx.Button(panel, label="Browse", pos=(460, 100))
+        hbox3 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox3.Add(wx.StaticText(panel, label="Path to Read2:"), flag=wx.RIGHT, border=8)
+        self.read2_path = wx.TextCtrl(panel, size=(300, -1))
+        browse_read2 = wx.Button(panel, label="Browse")
         browse_read2.Bind(wx.EVT_BUTTON, self.on_browse_read2)
+        hbox3.Add(self.read2_path, flag=wx.RIGHT, border=8)
+        hbox3.Add(browse_read2)
+        vbox.Add(hbox3, flag=wx.LEFT | wx.TOP, border=10)
 
         # Initially disable Read 2 controls
         self.read2_path.Disable()
         browse_read2.Disable()
-
-        
         self.browse_read2 = browse_read2
 
-        # Other controls
-        self.annotate_checkbox = wx.CheckBox(panel, label="Do you want to annotate variants?", pos=(20, 140))
-        
-        wx.StaticText(panel, label="Quality to filter using FASTP:", pos=(250, 140))
-        self.qual = wx.TextCtrl(panel, pos=(405, 140), size=(20, -1))
-        
-        wx.StaticText(panel, label="Species:", pos=(20, 180))
-        self.species = wx.Choice(panel, choices=["Escherichia coli", "Custom"], pos=(70, 180))
+        # Annotate checkbox and quality filter
+        hbox4 = wx.BoxSizer(wx.HORIZONTAL)
+        self.annotate_checkbox = wx.CheckBox(panel, label="Do you want to annotate variants?")
+        hbox4.Add(self.annotate_checkbox)
+        hbox4.Add(wx.StaticText(panel, label="Quality to filter using FASTP:"), flag=wx.LEFT, border=40)
+        self.qual = wx.TextCtrl(panel, size=(50, -1))
+        hbox4.Add(self.qual, flag=wx.LEFT, border=5)
+        vbox.Add(hbox4, flag=wx.LEFT | wx.TOP, border=10)
+
+        # Species choice
+        hbox5 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox5.Add(wx.StaticText(panel, label="Species:"), flag=wx.RIGHT, border=8)
+        self.species = wx.Choice(panel, choices=["Escherichia coli", "Custom"])
         self.species.Bind(wx.EVT_CHOICE, self.on_species_change)
-        
-        wx.StaticText(panel,label="Load your model:",pos = (20,220))
-        self.model_path = wx.TextCtrl(panel, pos = (120,220), size = (50,-1))
-        self.browse_model = wx.Button(panel, label="Browse", pos=(180, 220))
+        hbox5.Add(self.species)
+        vbox.Add(hbox5, flag=wx.LEFT | wx.TOP, border=10)
+
+        # Model, PCA, Label, and Reference genome paths with Browse buttons
+        def add_file_input(label, disable=True):
+            hbox = wx.BoxSizer(wx.HORIZONTAL)
+            hbox.Add(wx.StaticText(panel, label=label), flag=wx.RIGHT, border=8)
+            text_ctrl = wx.TextCtrl(panel, size=(300, -1))
+            browse_button = wx.Button(panel, label="Browse")
+            hbox.Add(text_ctrl, flag=wx.RIGHT, border=8)
+            hbox.Add(browse_button)
+            if disable:
+                text_ctrl.Disable()
+                browse_button.Disable()
+            vbox.Add(hbox, flag=wx.LEFT | wx.TOP, border=10)
+            return text_ctrl, browse_button
+
+        self.model_path, self.browse_model = add_file_input("Load your model:")
         self.browse_model.Bind(wx.EVT_BUTTON, self.on_browse_model)
-        
-        self.model_path.Disable()
-        self.browse_model.Disable()
-        
-        wx.StaticText(panel,label="Load your pca transformer:",pos = (20,260))
-        self.pca_path = wx.TextCtrl(panel, pos = (170,260), size = (50,-1))
-        self.browse_pca = wx.Button(panel, label="Browse", pos=(230, 260))
+        self.pca_path, self.browse_pca = add_file_input("Load your pca transformer:")
         self.browse_pca.Bind(wx.EVT_BUTTON, self.on_browse_pca)
-        
-        self.pca_path.Disable()
-        self.browse_pca.Disable()
-        
-        wx.StaticText(panel,label="Load your labels:",pos = (20,300))
-        self.label_path = wx.TextCtrl(panel, pos = (125,300), size = (50,-1))
-        self.browse_labels = wx.Button(panel, label="Browse", pos=(185, 300))
+        self.label_path, self.browse_labels = add_file_input("Load your labels:")
         self.browse_labels.Bind(wx.EVT_BUTTON, self.on_browse_labels)
-        
-        self.label_path.Disable()
-        self.browse_labels.Disable()
-        
-        wx.StaticText(panel,label="Load your reference genome:",pos = (20,340))
-        self.ref_path = wx.TextCtrl(panel, pos = (180,340), size = (50,-1))
-        self.browse_ref = wx.Button(panel, label="Browse", pos=(240, 340))
+        self.ref_path, self.browse_ref = add_file_input("Load your reference genome:")
         self.browse_ref.Bind(wx.EVT_BUTTON, self.on_browse_ref)
-        
-        self.ref_path.Disable()
-        self.browse_ref.Disable()
 
         # Run Button
-        self.run_btn = wx.Button(panel, label="Predict", pos=(20, 370))
+        hbox6 = wx.BoxSizer(wx.HORIZONTAL)
+        self.run_btn = wx.Button(panel, label="Predict")
         self.run_btn.Bind(wx.EVT_BUTTON, self.on_run_button)
+        hbox6.Add(self.run_btn)
+        vbox.Add(hbox6, flag=wx.LEFT | wx.TOP, border=10)
 
         # Output text area
-        self.output_area = wx.TextCtrl(panel, pos=(20, 420), size=(550, 200), style=wx.TE_MULTILINE | wx.TE_READONLY)
-        
+        self.output_area = wx.TextCtrl(panel, size=(550, 200), style=wx.TE_MULTILINE | wx.TE_READONLY)
+        vbox.Add(self.output_area, flag=wx.LEFT | wx.TOP | wx.EXPAND, border=10)
+
+        panel.SetSizer(vbox)
         wx.CallAfter(self.set_licensing_info)
 
         # Window settings
         self.SetTitle("UnnamedApp")
         self.SetSize((635, 675))
         self.Centre()
-    
-        self.wd = os.getcwd().replace('\\','/')
-        print(self.wd)
 
+    # Event handlers and pipeline code follow as in your initial code
     def set_licensing_info(self):
         self.output_area.SetValue("This software is licensed under the GNU Affero General Public License v3 (AGPL v3).\n"
         "Dependencies and their respective licenses:\n"
@@ -202,9 +253,9 @@ class UnnamedApp(wx.Frame):
             return
 
         # Set input and output directories
-        input_directory = f"{self.wd}/main/input/"
-        output_directory = f"{self.wd}/main/output/"
-        custom_directory = f"{self.wd}/main/custom/"
+        input_directory = f"{self.doc}/Unnamed/main/input/"
+        output_directory = f"{self.doc}/Unnamed/main/output/"
+        custom_directory = f"{self.doc}/Unnamed/main/custom/"
         
         custom_model_name = os.path.basename(self.custom_model_path) if self.custom_model_path else ""
         custom_pca_name = os.path.basename(self.custom_pca_path) if self.custom_pca_path else ""
@@ -240,7 +291,7 @@ class UnnamedApp(wx.Frame):
         quality_filter = '15' if self.qual.GetValue() == '' else self.qual.GetValue()
 
         command_run = (
-            f"docker run --rm -v {self.wd}/main/:/workspace kani nextflow run /workspace/script/main.nf"
+            f"docker run --rm -v {self.doc}/Unnamed/main/:/workspace kani nextflow run /workspace/script/main.nf"
             f" --ref {reference_sequence}"
             f" --read1 {input_1} {second_read}"
             f" --model {model_file}"
@@ -280,7 +331,10 @@ class UnnamedApp(wx.Frame):
             wx.CallAfter(self.output_area.AppendText, f"\nError: {process.stderr}")
 
         # Re-enable the Run button after completion
+        wx.CallAfter(self.cleanup_directories)
         wx.CallAfter(self.run_btn.Enable)
+
+    # You may reuse the methods for browsing files, running the pipeline, etc.
 
 def main():
     app = wx.App()

@@ -9,8 +9,10 @@ params.pca = ''
 params.model = ''
 params.bed = ''
 params.outdir = ''
-params.mode = ''
+params.mode = 'kmer'
 params.labels = ''
+params.k = '5'
+params.annotation = 'no'
 
 process indexReference {
     input:
@@ -269,6 +271,46 @@ process predict {
     """
 }
 
+process kmer {
+    publishDir params.outdir, mode: 'copy'
+    input:
+    path fastq_file
+    output:
+    path '*.csv'
+    script:
+    """
+    python3 -c "
+    from Bio import SeqIO
+    from collections import Counter
+    import pandas as pd
+
+    fastq_file_path = '${fastq_file}'
+
+    fastq_file = SeqIO.parse(fastq_file_path,'fastq')
+
+    k = int('${params.k}')
+
+    kmer_counts = Counter()
+    
+    for record in fastq_file:
+        sequence = str(record.seq)
+        for i in range(len(sequence) - k + 1):
+            kmer = sequence[i:i+k]
+            kmer_counts[kmer] +=1
+
+    df_kmer = pd.DataFrame(kmer_counts.items(), columns=['k-mer', 'Frequency'])
+    df_kmer = df_kmer.transpose()
+    df_kmer.to_csv(f'{fastq_file_path}_csv.csv',index=False, header=False)
+    "
+    """
+}
+
+workflow kmer_workflow {
+    println "Workflow mode: To generate k-mer counts"
+    input_channel = Channel.from(params.read1.split(/\s+/)).view()
+    kmer(input_channel)
+}
+
 
 workflow annotation_singleend{
 	println "Workflow mode: To annotate the variants"
@@ -339,16 +381,19 @@ workflow no_annotation_singleend{
 	}
 
 workflow {
-	if (params.mode == "annotation" && params.read2 == "") {
+	if (params.annotation == "yes" && params.read2 == "" && params.mode == "snp") {
 		annotation_singleend()
 	}
-	else if (params.mode == "" | params.mode == "no_annotation" && params.read2 == ""){
+	else if (params.annotation == "no" && params.read2 == "" && params.mode == "snp") {
 		no_annotation_singleend()
 	}
-	else if (params.mode == "annotation" && params.read2 != ""){
+	else if (params.annotation == "yes" && params.read2 != "" && params.mode == "snp") {
 		annotation()
 	}
-	else if (params.mode == "" | params.mode == "no_annotation" && params.read2 != ""){
+	else if (params.annotation == "no" && params.read2 != "" && params.mode == "snp") {
 		no_annotation()
 	}
+    else if (params.mode == "kmer") {
+        kmer_workflow()
+    }
 }

@@ -9,10 +9,12 @@ params.pca = ''
 params.model = ''
 params.bed = ''
 params.outdir = './'
-params.mode = 'kmer'
+params.mode = ''
 params.labels = ''
 params.k = '5'
 params.annotation = 'no'
+params.species = ''
+params.fasta_reads = ''
 
 process indexReference {
     input:
@@ -448,6 +450,106 @@ process mgefind {
     """
 }
 
+process argFind {
+    publishDir params.outdir, mode: 'copy'
+    input:
+    path fasta
+    output:
+    path "*_results_tab.txt"
+    script:
+    """
+    python3 -m resfinder -ifa $fasta -s \"${params.species}\" -acq -o ./
+    """
+}
+
+process argAssociation {
+    publishDir params.outdir, mode: 'copy'
+    input:
+    path arg
+    path mge
+    output:
+    path "${mge}_arg_association.csv"
+    script:
+    """
+    python3 -c "
+    import pandas as pd
+    args = pd.read_csv('${arg}', sep='\\t')
+    mges = pd.read_csv('${mge}', comment='#')
+    associations = []
+    args = args[['Resistance gene', 'Position in contig']]
+    args[['start', 'end']] = args['Position in contig'].str.split('\\.\\.', expand=True, n=1)
+    args['start'] = args['start'].astype(int)
+    args['end'] = args['end'].astype(int)
+    args.drop(columns=['Position in contig'], inplace=True)
+    mges['start'] = mges['start'].astype(int)
+    mges['end'] = mges['end'].astype(int)
+    for _, arg in args.iterrows():
+        for _, mge in mges.iterrows():
+            if abs(arg['start'] - mge['start']) <= 31000 or abs(arg['end'] - mge['end']) <= 31000:
+                associations.append({
+                    'ARG': arg['Resistance gene'],
+                    'MGE': mge['name'],
+                    'MGE_type': mge['type'],
+                    'MGE_START': mge['start'],
+                    'MGE_END': mge['end'],
+                    'ARG_START': arg['start'],
+                    'ARG_END': arg['end'],
+                    'Distance': min([abs(arg['start'] - mge['start']), abs(arg['end'] - mge['end'])])
+                })
+    associations_df = pd.DataFrame(associations)
+    associations_df.to_csv('${mge}_arg_association.csv', index=False)
+    "
+    """
+}
+
+workflow arg_mge_association {
+    println "Workflow mode: To identify ARGs and MGEs associated with genes and ARGs"
+    if (params.read1 != "" && params.read2 != "") {
+            def paired_reads_channel = tuple(params.read1, params.read2)
+        	trimming(paired_reads_channel)
+    }
+    else {
+        paired_reads_channel = Channel.fromFilePairs("${params.reads}")
+        paired_reads_channel = paired_reads_channel.map { pair -> [pair[1][0], pair[1][1]] }
+        trimming(paired_reads_channel)
+    }
+    assemble(trimming.out)
+    mgefind(assemble.out)
+    genomeAnnotation(assemble.out)
+    argFind(assemble.out)
+    argAssociation(argFind.out, mgefind.out)
+    mge_association(mgefind.out, genomeAnnotation.out)
+}
+
+workflow arg_mge_association_single_end {
+    println "Workflow mode: To identify ARGs and associated MGEs (Single End reads)"
+    input_channel = Channel.from(params.read1.split(/\s+/))
+    trimming_single_end(input_channel)
+    assemble_single_end(trimming_single_end.out)
+    mgefind(assemble_single_end.out)
+    genomeAnnotation(assemble_single_end.out)
+    argFind(assemble_single_end.out)
+    argAssociation(argFind.out, mgefind.out)
+    mge_association(mgefind.out, genomeAnnotation.out)
+}
+
+workflow arg {
+    println "Workflow mode: To identify ARGs and associated MGEs"
+    if (params.read1 != "" && params.read2 != "") {
+            def paired_reads_channel = tuple(params.read1, params.read2)
+        	trimming(paired_reads_channel)
+    }
+    else {
+        paired_reads_channel = Channel.fromFilePairs("${params.reads}")
+        paired_reads_channel = paired_reads_channel.map { pair -> [pair[1][0], pair[1][1]] }
+        trimming(paired_reads_channel)
+    }
+    assemble(trimming.out)
+    mgefind(assemble.out)
+    genomeAnnotation(assemble.out)
+    argFind(assemble.out)
+}
+
 workflow mge{
     println "Workflow mode: To generate MGEs"
     if (params.read1 != "" && params.read2 != "") {
@@ -522,15 +624,8 @@ workflow kmer_paired_end {
 
 workflow assembly_single_end {
     println "Workflow mode: To assemble single end reads"
-    if (params.read1 != "" && params.read2 != "") {
-            def paired_reads_channel = tuple(params.read1, params.read2)
-        	trimming(paired_reads_channel)
-    }
-    else {
-        paired_reads_channel = Channel.fromFilePairs("${params.reads}")
-        paired_reads_channel = paired_reads_channel.map { pair -> [pair[1][0], pair[1][1]] }
-        trimming(paired_reads_channel)
-    }
+    input_channel = Channel.from(params.read1.split(/\s+/))
+    trimming_single_end(input_channel)
     assemble(trimming_single_end.out)
 }
 
@@ -627,6 +722,57 @@ workflow annotation{
 	predict(encode.out, params.model, params.labels)
 	}
 
+workflow process_all {
+    println "Workflow mode: To process all"
+    if (params.read1 != "" && params.read2 != "") {
+            def paired_reads_channel = tuple(params.read1, params.read2)
+        	trimming(paired_reads_channel)
+    }
+    else {
+        paired_reads_channel = Channel.fromFilePairs("${params.reads}")
+        paired_reads_channel = paired_reads_channel.map { pair -> [pair[1][0], pair[1][1]] }
+        trimming(paired_reads_channel)
+    }
+    alignReads(indexReference.out, trimming.out,params.ref)
+    samToBam(alignReads.out)
+    sorting(samToBam.out)
+    variantCalling(sorting.out,params.ref)
+    mutationAnnotation(variantCalling.out, params.bed)
+    SNP(mutationAnnotation.out)
+    SNPFiltering(SNP.out)
+    SNPOutput(SNPFiltering.out)
+    posRefAlt(SNPOutput.out)
+    encode(posRefAlt.out, params.pca)
+    predict(encode.out, params.model, params.labels)
+    assemble(trimming.out)
+    kmer(assemble.out)
+    genomeAnnotation(assemble.out)
+    mgefind(assemble.out)
+    mge_association(mgefind.out, genomeAnnotation.out)
+}
+
+workflow process_all_single_end {
+    println "Workflow mode: To process all (Single End reads)"
+    input_channel = Channel.from(params.read1.split(/\s+/))
+    trimming_single_end(input_channel)
+    alignReads_single_end(indexReference.out, trimming_single_end.out,params.ref)
+    samToBam(alignReads_single_end.out)
+    sorting(samToBam.out)
+    variantCalling(sorting.out,params.ref)
+    mutationAnnotation(variantCalling.out, params.bed)
+    SNP(mutationAnnotation.out)
+    SNPFiltering(SNP.out)
+    SNPOutput(SNPFiltering.out)
+    posRefAlt(SNPOutput.out)
+    encode(posRefAlt.out, params.pca)
+    predict(encode.out, params.model, params.labels)
+    assemble_single_end(trimming_single_end.out)
+    kmer(trimming_single_end.out)
+    genomeAnnotation(assemble_single_end.out)
+    mgefind(assemble_single_end.out)
+    mge_association(mgefind.out, genomeAnnotation.out)
+}
+
 workflow {
     def isPairedEnd = params.read2 != "" || params.reads != ""
     def isSingleEnd = params.read2 == "" && params.reads == ""
@@ -636,6 +782,7 @@ workflow {
     def isAssembleMode = params.mode == "assemble"
     def isGenomeAnnotationMode = params.mode == "genome_annotation"
     def isMgeMode = params.mode == "mge"
+    def isSupermode = params.mode == "super"
 
     if (isSnpMode) {
         if (isSingleEnd) {
@@ -679,5 +826,24 @@ workflow {
         } else {
             mge()
         }
+    }
+    else if (isSupermode) {
+        if (isSingleEnd) {
+            process_all_single_end()
+        } else {
+            process_all()
+        }
+    }
+    else if (params.mode == "arg_mge" || params.mode == "mge_arg") {
+        if (isSingleEnd) {
+            arg_mge_association_single_end()
+        } else {
+            arg_mge_association()
+        }
+    } else if (params.mode == "arg") {
+        arg()
+    }
+    else {
+        println "Invalid mode"
     }
 }

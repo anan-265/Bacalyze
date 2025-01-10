@@ -15,9 +15,9 @@ This software has the following dependencies, each of which is governed by its o
 - **SAMtools**: Licensed under the [MIT License](https://github.com/samtools/samtools/blob/develop/LICENSE)
 - **BCFtools**: Licensed under the [MIT License](https://github.com/samtools/bcftools/blob/develop/LICENSE)
 - **VCFtools**: Licensed under the [GNU Lesser GPL License v3](https://github.com/vcftools/vcftools/blob/master/LICENSE)
-- **Spades**: Licensed under the [GPL License v3](https://github.com/ablab/spades?tab=License-1-ov-file)
-- **Prokka**: Licensed under the [GPL License v3](https://raw.githubusercontent.com/tseemann/prokka/master/doc/LICENSE.Prokka)
-- **MEFinder**: Licensed under the [GPL License v3](https://pypi.org/search/?c=License+%3A%3A+OSI+Approved+%3A%3A+GNU+General+Public+License+v3+%28GPLv3%29)
+- **Spades**: Licensed under the [GNU GPL License v3](https://github.com/ablab/spades?tab=License-1-ov-file)
+- **Prokka**: Licensed under the [GNU GPL License v3](https://raw.githubusercontent.com/tseemann/prokka/master/doc/LICENSE.Prokka)
+- **MEFinder**: Licensed under the [GNU GPL License v3](https://pypi.org/search/?c=License+%3A%3A+OSI+Approved+%3A%3A+GNU+General+Public+License+v3+%28GPLv3%29)
 - **Resfinder**: Licensed under the [Apache License 2.0](https://github.com/genomicepidemiology/resfinder?tab=License-1-ov-file)
 - **Nextflow**: Licensed under the [Apache License 2.0](https://github.com/nextflow-io/nextflow/tree/master?tab=Apache-2.0-1-ov-file)
 

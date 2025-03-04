@@ -80,7 +80,7 @@ process alignReads {
     script:
         """
 	echo "Aligning Reads. Reference: ${reference}"
-	bwa mem -p $reference $forward $reverse > ${forward}.sam
+	bwa mem $reference $forward $reverse > ${forward}.sam
         """
 }
 
@@ -460,7 +460,7 @@ process mgefind {
 
 process argFind {
      publishDir "${params.outdir}/arg", mode: 'copy', mkdirs: true
-     errorStrategy 'ignore'
+     //errorStrategy 'ignore'
 //     maxRetries 3
     input:
     path fasta
@@ -468,7 +468,16 @@ process argFind {
     path "${fasta}_results_tab.tsv"
     script:
     """
-    python3 -m resfinder -ifa $fasta -s \"${params.species}\" -acq -o ./
+    #!/bin/bash -ux
+    
+    if [ -f ~/.bashrc ]; then
+        source ~/.bashrc
+    fi
+    echo "PATH inside container: \$PATH"
+    blastn_path=\$(which blastn)
+    echo \$blastn_path
+#    while true; do sleep 1000; done
+    python3 -m resfinder -ifa $fasta -s \"${params.species}\" -acq -o ./ -b "\$blastn_path"
     mv *results_tab.txt ${fasta}_results_tab.tsv
     python3 -c"
 import os
@@ -516,10 +525,15 @@ process argAssociation {
         exit(0)
     args = pd.read_csv(arg_file, sep='\\t')
     mges = pd.read_csv('${mge}', comment='#')
+    args.columns = args.columns.str.strip()
+    args['contig'] = args['Contig'].str.split(' ').str[0]
+    args.drop(columns=['Contig'], inplace=True)
+    mges['contig'] = mges['contig'].str.split(' ').str[0]
+    #print(f'Processing ARG and MGE data for {mge_prefix}')
     if args.empty or mges.empty:
         exit(0)
     associations = []
-    args = args[['Resistance gene', 'Position in contig']]
+    args = args[['Resistance gene', 'Position in contig','contig']]
     args[['start', 'end']] = args['Position in contig'].str.split('\\.\\.', expand=True, n=1)
     args['start'] = args['start'].astype(int)
     args['end'] = args['end'].astype(int)
@@ -528,7 +542,8 @@ process argAssociation {
     mges['end'] = mges['end'].astype(int)
     for _, arg in args.iterrows():
         for _, mge in mges.iterrows():
-            if abs(arg['start'] - mge['start']) <= 10000 or abs(arg['end'] - mge['end']) <= 10000:
+            if (abs(arg['start'] - mge['start']) <= 10000 or abs(arg['end'] - mge['end']) <= 10000) and arg['contig'] == mge['contig']:
+                
                 associations.append({
                     'ARG': arg['Resistance gene'],
                     'MGE': mge['name'],
@@ -537,6 +552,7 @@ process argAssociation {
                     'MGE_END': mge['end'],
                     'ARG_START': arg['start'],
                     'ARG_END': arg['end'],
+                    'CONTIG': arg['contig'],
                     'Distance': min([abs(arg['start'] - mge['start']), abs(arg['end'] - mge['end'])])
                 })
     associations_df = pd.DataFrame(associations)
@@ -559,16 +575,19 @@ process csvCombine {
     """
     python3 -c "
 import os
+print('Imported os')
 import pandas as pd
+print('Imported pandas')
 from mlxtend.frequent_patterns import apriori, association_rules
 from mlxtend.preprocessing import TransactionEncoder
+print('Imported mlxtend')
 
 import resource
-
+print('Imported resource')
 # Limit RAM usage to 4 GB
 soft, hard = resource.getrlimit(resource.RLIMIT_AS)
 resource.setrlimit(resource.RLIMIT_AS, (5 * 1024 * 1024 * 1024, hard))
-
+print(f'Set resource limit to 5 GB')
 csv_dir = '${params.outdir}/mge/'
 mge_data = {}
 
@@ -615,7 +634,9 @@ plt.legend(bars, legend_labels, title='MGE Counts', bbox_to_anchor=(1.05, 1), lo
 
 # Save the bar graph
 plt.savefig('${params.outdir}/mge_counts_bargraph_with_legend.png', bbox_inches='tight')
-plt.savefig('mge_counts_bargraph_with_legend.png', bbox_inches='tight')
+print('Saved bar graph with legend for MGE counts')
+
+#plt.savefig('mge_counts_bargraph_with_legend.png', bbox_inches='tight')
 
 genome_mge_data = {}
 
@@ -642,7 +663,7 @@ genome_mge_df = pd.DataFrame([
 #print(genome_mge_df)
 
 genome_mge_df.to_csv('genome_mge_output.csv', index=False)
-
+#print('Written genome IDs with their MGEs to CSV file')
 # Prepare the data for the apriori algorithm
 genome_mge_list = genome_mge_df['MGES'].apply(lambda x: x.split(',')).tolist()
 
@@ -668,6 +689,7 @@ if genome_mge_df.shape[0] != 1:
         rules = association_rules(frequent_itemsets, metric='lift', min_threshold=1,support_only=True)
         with open('${params.outdir}/warning_note.txt', 'w') as f:
             f.write('The number of frequent itemsets is too large to generate association rules. Only the top 13087 frequent itemsets were used to generate association rules.')
+        print('The number of frequent itemsets is too large to generate association rules. Only the top 13087 frequent itemsets were used to generate association rules.')
         print('Association rules generated')
 
 # Print the frequent itemsets and the association rules
@@ -680,6 +702,7 @@ if genome_mge_df.shape[0] != 1:
 
 # Save the readable association rules to a CSV file
     rules.to_csv('${params.outdir}/readable_association_rules.csv', index=False)
+    print('Written association rules to CSV file')
 
 else:
     with open('${params.outdir}/warning_note.txt', 'w') as f:
@@ -689,8 +712,9 @@ else:
     rules = None
 
 genome_mge_df['NUMBER_OF_MGES'] = genome_mge_df['MGES'].apply(lambda x: len(x.split(',')))
-print(genome_mge_df)
+#print(genome_mge_df)
 genome_mge_df.to_csv('${params.outdir}/genome_mge_output.csv', index=False)
+print('Written genome IDs with their MGEs to CSV file')
 # Calculate the number of MGEs per genome
 num_mges = genome_mge_df['NUMBER_OF_MGES']
 
@@ -725,6 +749,7 @@ plt.text(1.1, whisker_high, f'Upper Whisker: {whisker_high:.2f}', verticalalignm
 
 plt.tight_layout()
 plt.savefig('${params.outdir}/mge_boxplot.png', bbox_inches='tight')
+print('Saved box plot of MGEs per genome')
 
 # Calculate the genome(s) with the lowest and highest number of MGEs
 min_mges = genome_mge_df['NUMBER_OF_MGES'].min()
@@ -743,6 +768,7 @@ summary_df = pd.DataFrame({
 
 # Write the summary DataFrame to a CSV file
 summary_df.to_csv('${params.outdir}/genome_mge_summary.csv', index=False)
+print('Written summary of genome and MGEs to CSV file')
 
 # Create a new DataFrame with the number of MGEs vs number of genomes with that many MGEs
 mge_counts = genome_mge_df['NUMBER_OF_MGES'].value_counts().reset_index()
@@ -750,6 +776,7 @@ mge_counts.columns = ['NUMBER_OF_MGES', 'NUMBER_OF_GENOMES']
 
 # Write the new DataFrame to a CSV file
 mge_counts.to_csv('${params.outdir}/mge_counts_vs_genomes.csv', index=False)
+print('Written MGE counts vs genomes to CSV file')
 # Visualize the number of MGEs vs number of genomes
 plt.figure(figsize=(10, 6))
 norm = plt.Normalize(mge_counts['NUMBER_OF_GENOMES'].min(), mge_counts['NUMBER_OF_GENOMES'].max())
@@ -768,15 +795,13 @@ legend_patches = [mpatches.Patch(color=plt.cm.Greens(norm(count)), label=f'{mge}
 plt.legend(handles=legend_patches, title='MGE Counts', bbox_to_anchor=(1.05, 1), loc='upper left')
 
 plt.savefig('${params.outdir}/mge_counts_vs_genomes.png', bbox_inches='tight')
-print('type_counts')
-print(output_df)
+print('Saved bar graph of MGE counts vs genomes')
 type_counts = output_df['TYPE'].value_counts().reset_index()
-print('type_counts')
-print(type_counts)
 type_counts.columns = ['TYPE', 'COUNT']
-print('type_counts done')
+type_counts['TYPE'] = type_counts['TYPE'].apply(lambda x: x.upper() if x == 'mite' else x.capitalize())
 # Write the new DataFrame to a CSV file
 type_counts.to_csv('${params.outdir}/mge_type_counts.csv', index=False)
+print('Written MGE type counts to CSV file')
 
 # Visualize the counts of each type of MGE as a bar graph
 plt.figure(figsize=(10, 6))
@@ -795,15 +820,21 @@ legend_patches = [mpatches.Patch(color=plt.cm.Blues(norm(count)), label=f'{type_
                   for type_, count in zip(type_counts['TYPE'], type_counts['COUNT'])]
 plt.legend(handles=legend_patches, title='Type Counts', bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.savefig('${params.outdir}/type_counts_bargraph.png', bbox_inches='tight')
+print('Saved bar graph of MGE type counts')
+print('Completed processing of MGE data')
 
     "
     python3 -c "
+print('Starting ARG data processing')
 import os
+print('Imported os')
 import pandas as pd
+print('Imported pandas')
 import seaborn as sns
+print('Imported seaborn')
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
-print('imported for arg')
+print('Imported matplotlib')
 # Directory containing the CSV files
 csv_dir = '${params.outdir}/associations/'
 
@@ -934,20 +965,21 @@ new_output_data = [
     }
     for key, data in new_data.items()
 ]
-print('Converting')
+#print('Converting')
 new_output_df = pd.DataFrame(new_output_data)
-print('Converted')
+#print('Converted')
     # Merge the new DataFrame with the final_df to get the 'Phenotype' column
 new_final_df = pd.merge(new_output_df, final_df[['ARG', 'Phenotype']], on='ARG', how='left')
-print('Merged')
+
 # Save the new DataFrame to a CSV file
 #new_final_df.to_csv('new_combined_output.csv', index=False)
 # Function to check if ARG and MGE overlap
 def check_overlap(row):
-    return row['ARG_START'] >= row['MGE_START'] and row['ARG_END'] <= row['MGE_END']
+    return (row['ARG_START'] >= row['MGE_START'] and row['ARG_START'] <= row['MGE_END']) or \
+           (row['ARG_END'] >= row['MGE_START'] and row['ARG_END'] <= row['MGE_END'])
 
 # Apply the function to create the 'ON_MGE' column
-new_final_df['ON_MGE'] = new_final_df.apply(check_overlap, axis=1)
+new_final_df['OVERLAP'] = new_final_df.apply(check_overlap, axis=1)
 # Strip white spaces from 'Phenotype' column and explode with comma delimiter
 new_final_df['Phenotype'] = new_final_df['Phenotype'].str.replace(' ', '')
 new_final_df = new_final_df.assign(Phenotype=new_final_df['Phenotype'].str.split(',')).explode('Phenotype')
@@ -961,7 +993,7 @@ new_final_df.to_csv('${params.outdir}/combined_association_with_overlap.csv', in
 # Group by 'Phenotype' and count the total occurrences and overlaps
 plot_data = new_final_df.groupby('Phenotype').agg(
     Total=('Phenotype', 'size'),
-    Overlaps=('ON_MGE', 'sum')
+    Overlaps=('OVERLAP', 'sum')
 ).reset_index()
 
 # Create a bar plot
@@ -986,7 +1018,7 @@ plt.xticks(rotation=90)
 
 legend_patches = [
     Patch(color='blue', label='Near MGEs'),
-    Patch(color='green', label='On MGEs')
+    Patch(color='green', label='Overlaps')
 ]
 plt.legend(handles=legend_patches, title='Legend')
 
@@ -1000,6 +1032,7 @@ plt.tight_layout()
 plt.savefig('${params.outdir}/ARG_grouped_by_antibiotics.png')
 # Save the plot data to a CSV file
 plot_data.to_csv('${params.outdir}/ARG_grouped_by_antibiotics.csv', index=False)
+print('Saved bar graph of ARGs grouped by antibiotics')
 
 
 
@@ -1090,6 +1123,8 @@ final_df = pd.concat(class_counts_list, ignore_index=True)
 total_counts = final_df.groupby('Class')['Num_Genes'].sum().reset_index()
 total_counts = total_counts.sort_values(by='Num_Genes',ascending=False)
 total_counts = total_counts[total_counts['Class'] != 'under_development']
+total_counts['Class'] = total_counts['Class'].str.capitalize()
+total_counts.to_csv('${params.outdir}/total_genes_grouped_by_class.csv', index=False)
 plt.figure(figsize=(10, 6))
 # Normalize the number of genes for color mapping
 norm = plt.Normalize(total_counts['Num_Genes'].min(), total_counts['Num_Genes'].max())

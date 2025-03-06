@@ -6,7 +6,7 @@ import time
 import os
 import threading
 import platform
-from win32com.shell import shell, shellcon
+#from win32com.shell import shell, shellcon
 
 class UnnamedApp(wx.Frame):
     def __init__(self, *args, **kw):

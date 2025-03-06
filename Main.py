@@ -6,7 +6,6 @@ import time
 import os
 import threading
 import platform
-#from win32com.shell import shell, shellcon
 
 class UnnamedApp(wx.Frame):
     def __init__(self, *args, **kw):
@@ -21,7 +20,7 @@ class UnnamedApp(wx.Frame):
     def get_doc_folder(self):
         if platform.system() == "Windows":
             try:
-                from win32com.shell import shell, shellcon
+                from win32com.shell import shell, shellcon # type: ignore
                 return shell.SHGetFolderPath(0, shellcon.CSIDL_PERSONAL, None, 0)
             except ImportError:
                 raise ImportError("win32com is not installed. Install it using 'pip install pywin32'.")
@@ -53,7 +52,7 @@ class UnnamedApp(wx.Frame):
     def InitUI(self):
         panel = wx.Panel(self)
         
-        default_font = wx.Font(10, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Segoe UI")
+        default_font = wx.Font(10, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Google Sans")
         self.SetFont(default_font)
 
         # Main vertical sizer
@@ -61,15 +60,15 @@ class UnnamedApp(wx.Frame):
 
         # Read Type Choice
         hbox1 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox1.Add(wx.StaticText(panel, label="Select read type:"), flag=wx.RIGHT, border=8)
+        hbox1.Add(wx.StaticText(panel, label="Select read type:"), flag=wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, border=8)
         self.read_type = wx.Choice(panel, choices=["Single-ended", "Paired-ended"])
         self.read_type.Bind(wx.EVT_CHOICE, self.on_read_type_change)
-        hbox1.Add(self.read_type)
+        hbox1.Add(self.read_type, flag=wx.ALIGN_CENTER_VERTICAL)
         vbox.Add(hbox1, flag=wx.LEFT | wx.TOP, border=10)
 
         # Path inputs for Read 1 and Read 2
         hbox2 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox2.Add(wx.StaticText(panel, label="Path to Read1:"), flag=wx.RIGHT, border=8)
+        hbox2.Add(wx.StaticText(panel, label="Path to Read1:"), flag=wx.ALIGN_CENTER_VERTICAL, border=8)
         self.read1_path = wx.TextCtrl(panel, size=(300, -1))
         browse_read1 = wx.Button(panel, label="Browse")
         browse_read1.Bind(wx.EVT_BUTTON, self.on_browse_read1)
@@ -78,7 +77,7 @@ class UnnamedApp(wx.Frame):
         vbox.Add(hbox2, flag=wx.LEFT | wx.TOP, border=10)
 
         hbox3 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox3.Add(wx.StaticText(panel, label="Path to Read2:"), flag=wx.RIGHT, border=8)
+        hbox3.Add(wx.StaticText(panel, label="Path to Read2:"), flag=wx.ALIGN_CENTER_VERTICAL, border=8)
         self.read2_path = wx.TextCtrl(panel, size=(300, -1))
         browse_read2 = wx.Button(panel, label="Browse")
         browse_read2.Bind(wx.EVT_BUTTON, self.on_browse_read2)
@@ -94,15 +93,15 @@ class UnnamedApp(wx.Frame):
         # Annotate checkbox and quality filter
         hbox4 = wx.BoxSizer(wx.HORIZONTAL)
         self.annotate_checkbox = wx.CheckBox(panel, label="Do you want to annotate variants?")
-        hbox4.Add(self.annotate_checkbox)
-        hbox4.Add(wx.StaticText(panel, label="Quality to filter using FASTP:"), flag=wx.LEFT, border=40)
-        self.qual = wx.TextCtrl(panel, size=(50, -1))
+        hbox4.Add(self.annotate_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        hbox4.Add(wx.StaticText(panel, label="Quality to filter using FASTP:"), flag=wx.ALIGN_CENTER_VERTICAL | wx.LEFT, border=40)
+        self.qual = wx.TextCtrl(panel, size=(50, 23))
         hbox4.Add(self.qual, flag=wx.LEFT, border=5)
         vbox.Add(hbox4, flag=wx.LEFT | wx.TOP, border=10)
 
         # Species choice
         hbox5 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox5.Add(wx.StaticText(panel, label="Species:"), flag=wx.RIGHT, border=8)
+        hbox5.Add(wx.StaticText(panel, label="Species:"), flag=wx.ALIGN_CENTER_VERTICAL, border=8)
         self.species = wx.Choice(panel, choices=["Escherichia coli", "Custom"])
         self.species.Bind(wx.EVT_CHOICE, self.on_species_change)
         hbox5.Add(self.species)
@@ -111,7 +110,7 @@ class UnnamedApp(wx.Frame):
         # Model, PCA, Label, and Reference genome paths with Browse buttons
         def add_file_input(label, disable=True):
             hbox = wx.BoxSizer(wx.HORIZONTAL)
-            hbox.Add(wx.StaticText(panel, label=label), flag=wx.RIGHT, border=8)
+            hbox.Add(wx.StaticText(panel, label=label), flag=wx.ALIGN_CENTER_VERTICAL, border=8)
             text_ctrl = wx.TextCtrl(panel, size=(300, -1))
             browse_button = wx.Button(panel, label="Browse")
             hbox.Add(text_ctrl, flag=wx.RIGHT, border=8)
@@ -130,13 +129,50 @@ class UnnamedApp(wx.Frame):
         self.browse_labels.Bind(wx.EVT_BUTTON, self.on_browse_labels)
         self.ref_path, self.browse_ref = add_file_input("Load your reference genome:")
         self.browse_ref.Bind(wx.EVT_BUTTON, self.on_browse_ref)
+        
+        hbox6 = wx.BoxSizer(wx.HORIZONTAL)
+        self.predict_checkbox = wx.CheckBox(panel, label="Predict AMR")
+        hbox6.Add(self.predict_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        self.SNP_checkbox = wx.CheckBox(panel, label="Identify SNPs")
+        hbox6.Add(self.SNP_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        self.predict_ARG_checkbox = wx.CheckBox(panel, label="Predict ARGs")
+        hbox6.Add(self.predict_ARG_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        self.bulk_paired_checkbox = wx.CheckBox(panel, label="Bulk process")
+        hbox6.Add(self.bulk_paired_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        vbox.Add(hbox6, flag=wx.LEFT | wx.TOP, border=10)
+
+        hbox7 = wx.BoxSizer(wx.HORIZONTAL)
+        self.assemble_checkbox = wx.CheckBox(panel, label="Assemble")
+        hbox7.Add(self.assemble_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        self.annotate_genome_checkbox = wx.CheckBox(panel, label="Annotate Genome")
+        hbox7.Add(self.annotate_genome_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        self.predict_MGE_checkbox = wx.CheckBox(panel, label="Predict MGEs")
+        hbox7.Add(self.predict_MGE_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        vbox.Add(hbox7, flag=wx.LEFT | wx.TOP, border=10)
+
+        hbox8 = wx.BoxSizer(wx.HORIZONTAL)
+        self.identify_MGE_association_checkbox = wx.CheckBox(panel, label="Identify MGE associations")
+        hbox8.Add(self.identify_MGE_association_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        self.kmer_checkbox = wx.CheckBox(panel, label="Identify kmer frequencies")
+        hbox8.Add(self.kmer_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        self.assembled_genome_checkbox = wx.CheckBox(panel, label="Assembled Genome")
+        hbox8.Add(self.assembled_genome_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        self.assembled_genome_checkbox.Bind(wx.EVT_CHECKBOX, self.on_assembled_genome_change)
+        vbox.Add(hbox8, flag=wx.LEFT | wx.TOP, border=10)
+        
+        hbox9 = wx.BoxSizer(wx.HORIZONTAL)
+        self.super_checkbox = wx.CheckBox(panel, label="Super mode")
+        hbox9.Add(self.super_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        self.super_checkbox.Bind(wx.EVT_CHECKBOX, self.on_super_mode_change)
+        vbox.Add(hbox9, flag=wx.LEFT | wx.TOP, border=10)
+        panel.Layout()
 
         # Run Button
-        hbox6 = wx.BoxSizer(wx.HORIZONTAL)
-        self.run_btn = wx.Button(panel, label="Predict")
+        hbox10 = wx.BoxSizer(wx.HORIZONTAL)
+        self.run_btn = wx.Button(panel, label="Run")
         self.run_btn.Bind(wx.EVT_BUTTON, self.on_run_button)
-        hbox6.Add(self.run_btn)
-        vbox.Add(hbox6, flag=wx.LEFT | wx.TOP, border=10)
+        hbox10.Add(self.run_btn)
+        vbox.Add(hbox10, flag=wx.LEFT | wx.TOP, border=10)
 
         # Output text area
         self.output_area = wx.TextCtrl(panel, size=(550, 200), style=wx.TE_MULTILINE | wx.TE_READONLY)
@@ -147,19 +183,44 @@ class UnnamedApp(wx.Frame):
 
         # Window settings
         self.SetTitle("UnnamedApp")
-        self.SetSize((635, 675))
+        self.SetSize((800, 800))
         self.Centre()
+    
+    def on_assembled_genome_change(self, event):
+        is_checked = self.assembled_genome_checkbox.IsChecked()
+        self.read2_path.Enable(not is_checked)
+        self.browse_read2.Enable(not is_checked)
+        self.read_type.Enable(not is_checked)
+        #self.bulk_paired_checkbox.Enable(not is_checked)
 
-    # Event handlers and pipeline code follow as in your initial code
+    def on_super_mode_change(self, event):
+        is_super_mode = self.super_checkbox.IsChecked()
+        self.predict_checkbox.SetValue(is_super_mode)
+        self.SNP_checkbox.SetValue(is_super_mode)
+        self.predict_ARG_checkbox.SetValue(is_super_mode)
+        self.assemble_checkbox.SetValue(is_super_mode)
+        self.annotate_genome_checkbox.SetValue(is_super_mode)
+        self.predict_MGE_checkbox.SetValue(is_super_mode)
+        self.identify_MGE_association_checkbox.SetValue(is_super_mode)
+        self.kmer_checkbox.SetValue(is_super_mode)
+        self.predict_checkbox.Enable(not is_super_mode)
+        self.SNP_checkbox.Enable(not is_super_mode)
+        self.predict_ARG_checkbox.Enable(not is_super_mode)
+        self.assemble_checkbox.Enable(not is_super_mode)
+        self.annotate_genome_checkbox.Enable(not is_super_mode)
+        self.predict_MGE_checkbox.Enable(not is_super_mode)
+        self.identify_MGE_association_checkbox.Enable(not is_super_mode)
+        self.kmer_checkbox.Enable(not is_super_mode)
+
     def set_licensing_info(self):
         self.output_area.SetValue("This software is licensed under the GNU Affero General Public License v3 (AGPL v3).\n"
         "Dependencies and their respective licenses:\n"
         "- Python: Python Software Foundation License\n"
-        "- BWA: GPL License\n"
+        "- BWA: GNU GPL License v3\n"
         "- Fastp: MIT License\n"
         "- SAMtools: MIT License\n"
         "- BCFtools: MIT License\n"
-        "- VCFtools: GPL License\n"
+        "- VCFtools: GNU Lesser GPL License v3\n"
         "- Nextflow: Apache License 2.0\n"
         "- pandas: BSD 3-Clause License\n"
         "- scikit-learn: BSD 3-Clause License\n"
@@ -230,7 +291,40 @@ class UnnamedApp(wx.Frame):
         threading.Thread(target=self.run_pipeline).start()
 
     def run_pipeline(self):
-        # Fetch and validate input
+        def check_dependencies():
+            dependencies = ["nextflow", "bwa", "samtools", "vcftools", "bcftools", "python3", "spades", "mefinder", "resfinder"]
+            missing_dependencies = []
+
+            for dep in dependencies:
+                if shutil.which(dep) is None:
+                    missing_dependencies.append(dep)
+
+            # Check for Python packages
+                try:
+                    import sklearn
+                except ImportError:
+                    missing_dependencies.append("sklearn")
+
+                try:
+                    import Bio
+                except ImportError:
+                    missing_dependencies.append("biopython")
+
+            if missing_dependencies:
+                missing_str = ", ".join(missing_dependencies)
+            wx.CallAfter(self.output_area.AppendText, f"Missing dependencies: {missing_str}\nPlease install them by referring to their respective documentation.\n")
+            wx.CallAfter(self.run_btn.Enable)  # Re-enable the Run button
+            return False
+            
+
+        if shutil.which("docker") is None:
+            if not check_dependencies():
+                return
+            else:
+                wx.CallAfter(self.output_area.AppendText, "Docker is not installed. Please install Docker and build the docker image using the given Dockerfile to proceed.\n")
+                wx.CallAfter(self.run_btn.Enable)  # Re-enable the Run button
+            return
+        # Get the values of all input fields
         end_type = "P" if self.read_type.GetStringSelection() == "Paired-ended" else "S"
         self.read_1 = self.read1_path.GetValue().replace('\\', '/')
         self.read_2 = self.read2_path.GetValue().replace('\\', '/') if end_type == "P" else ""
@@ -240,8 +334,8 @@ class UnnamedApp(wx.Frame):
             "Escherichia coli" : "ecoli",
             "Custom" : "custom"
         }
-        species_selection = species_dict[species_string]
-        
+
+            
         self.custom_model_path = self.model_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
         self.custom_pca_path = self.pca_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
         self.custom_label_path = self.label_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
@@ -266,6 +360,33 @@ class UnnamedApp(wx.Frame):
         if self.read_2:
             shutil.copy(self.read_2, input_directory)
         
+        pipeline_mode = ""
+        pipeline_assembled = "no"
+
+        if self.predict_checkbox.IsChecked():
+            pipeline_mode = "snp"
+        elif self.SNP_checkbox.IsChecked():
+            pipeline_mode = "snp-no-predict"
+        elif self.predict_ARG_checkbox.IsChecked():
+            pipeline_mode = "arg"
+        elif self.assemble_checkbox.IsChecked():
+            pipeline_mode = "assemble"
+        elif self.annotate_genome_checkbox.IsChecked():
+            pipeline_mode = "genome_annotation"
+        elif self.predict_MGE_checkbox.IsChecked():
+            pipeline_mode = "mge"
+        elif self.identify_MGE_association_checkbox.IsChecked():
+            pipeline_mode = "arg_mge"
+        elif self.kmer_checkbox.IsChecked():
+            pipeline_mode = "kmer"
+        if self.assembled_genome_checkbox.IsChecked():
+            pipeline_assembled = "yes"
+        
+        if pipeline_mode in ['snp','snp-no-predict','super']:
+            species_selection = species_dict[species_string]
+        else:
+            species_selection = ""
+        
         if species_selection == "custom":
             shutil.copy(self.custom_model_path,custom_directory)
             shutil.copy(self.custom_label_path,custom_directory)
@@ -286,26 +407,36 @@ class UnnamedApp(wx.Frame):
         second_read = f"--read2 {input_2}" if input_2 else ""
         
         # Check if the annotation checkbox is checked
-        annotation_mode = "--mode annotation" if self.annotate_checkbox.IsChecked() and species_selection != "custom" else ""
+        annotation_mode = "--annotation yes" if self.annotate_checkbox.IsChecked() and species_selection != "custom" else ""
         
         quality_filter = '15' if self.qual.GetValue() == '' else self.qual.GetValue()
+        
+        reads_param = f" --read1 {input_1} {second_read}"
+
+        if species_selection == "" or species_selection == "custom":
+            self.arg_species = '--species other'
+        else:
+            self.arg_species = f'--species {species_selection}'
 
         command_run = (
-            f"docker run --rm -v {self.doc}/Unnamed/main/:/workspace kani nextflow run /workspace/script/main.nf"
-            f" --ref {reference_sequence}"
-            f" --read1 {input_1} {second_read}"
+            f"docker run -it -v {self.doc}/Unnamed/main/:/workspace kani nextflow run /workspace/script/main.nf"
+            f" --ref {reference_sequence} {reads_param}"
             f" --model {model_file}"
             f" --pca {pca_file}"
             f" --bed {annotation_file}"
             f" --labels {labels_file}"
             f" {annotation_mode}"
-            f" --outdir /workspace/output"
+            f" --mode {pipeline_mode}"
+            f" --outdir /workspace/output/"
             f" --qual {quality_filter}"
+            f" {self.arg_species}"
+            f" --assembled {pipeline_assembled}"
         )
 
         # Run the command and track the time
         start_time = time.time()
         process = subprocess.run(command_run, shell=True, stderr=subprocess.PIPE, text=True)
+        wx.CallAfter(self.output_area.AppendText, f"\nCommand executed:\n{command_run}\n")
         end_time = time.time()
 
         # Calculate elapsed time
@@ -315,10 +446,24 @@ class UnnamedApp(wx.Frame):
         # Find the output file and read its contents
         out_txt_name = glob.glob(f"{output_directory}{input_1_name}*output.txt")
         output_data = ""
-        if out_txt_name:
+        if out_txt_name and pipeline_mode == "snp" and process.returncode == 0:
             out_text_directory = out_txt_name[0]
             with open(out_text_directory, "r") as output_prediction:
                 output_data = output_prediction.read()
+        elif pipeline_mode == "assemble" and process.returncode == 0:
+            output_data = f"Reads Assembled successfully using SPAdes. Output files were saved in the {output_directory} directory."
+        elif pipeline_mode == "genome_annotation" and process.returncode == 0:
+            output_data = f"Genome Annotated successfully using Prokka. Output files were saved in the {output_directory} directory."
+        elif pipeline_mode == "mge" and process.returncode == 0:
+            output_data = f"MGEs Predicted successfully. Associated MGEs with genes were written as csv file in the {output_directory} directory."
+        elif pipeline_mode == "arg_mge" and process.returncode == 0:
+            output_data = f"MGEs and ARGs Identified successfully. Associated MGEs with genes and ARGs with MGEs were written as csv file in the {output_directory} directory."
+        elif pipeline_mode == "kmer" and process.returncode == 0:
+            output_data = f"Kmer frequencies Identified successfully. Kmer frequencies were written as csv file in the {output_directory} directory."
+        elif pipeline_mode == "snp-no-predict" and process.returncode == 0:
+            output_data = f"SNPs Identified successfully. Output files were saved in the {output_directory} directory."
+        elif pipeline_mode == "arg" and process.returncode == 0:
+            output_data = f"ARGs Predicted successfully using ResFinder. Output files were saved in the {output_directory} directory."
         else:
             output_data = "Output file not found. Please check the pipeline execution."
 
@@ -334,7 +479,6 @@ class UnnamedApp(wx.Frame):
         wx.CallAfter(self.cleanup_directories)
         wx.CallAfter(self.run_btn.Enable)
 
-    # You may reuse the methods for browsing files, running the pipeline, etc.
 
 def main():
     app = wx.App()

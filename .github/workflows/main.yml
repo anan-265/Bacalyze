@@ -1,0 +1,28 @@
+name: Update Fork
+
+on:
+  release:
+    types: [created, published, prereleased]
+
+jobs:
+  update-fork:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          repository: anan-265/Unnamed
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/anan-265/Unnamed.git
+
+      - name: Fetch upstream changes
+        run: git fetch upstream
+
+      - name: Merge upstream changes
+        run: git merge upstream/main
+
+      - name: Push changes
+        run: git push origin main

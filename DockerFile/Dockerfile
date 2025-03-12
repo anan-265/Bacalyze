@@ -16,7 +16,7 @@
 
 FROM ubuntu:24.04
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=interactive
 
 RUN echo -e "Licensing Information:\n\
 This software is licensed under the GNU Affero General Public License v3 (AGPL v3).\n\
@@ -33,14 +33,17 @@ Dependencies and their respective licenses:\n\
 Users are responsible for ensuring compliance with each dependency's license." && \
 	apt-get update && \
     apt-get install -y \
-    python3 python3-pip bwa fastp samtools bcftools vcftools curl openjdk-17-jdk && \
-    rm -rf /var/lib/apt/lists/* && \
+    python3 python3-pip bwa fastp samtools bcftools vcftools curl openjdk-17-jdk ncbi-blast+ prokka && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
     # Download and install Nextflow
-    curl -s https://get.nextflow.io | bash && \
-    mv nextflow /usr/local/bin/ && \
+RUN curl -s https://get.nextflow.io | bash && \
+    mv nextflow /usr/local/bin/
     # Use pip to install Python packages, breaking system package management
-    pip3 install --break-system-packages pandas scikit-learn && \
+RUN pip3 install --break-system-packages pandas scikit-learn mlxtend biopython resfinder mefinder && \
     # Set Python3 as the default python command
-    ln -s /usr/bin/python3 /usr/bin/python
+    ln -s /usr/bin/python3 /usr/bin/python && \
+
+
 
 CMD ["bash"]

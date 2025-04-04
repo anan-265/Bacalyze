@@ -20,7 +20,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
-    python3 python3-pip bwa fastp samtools bcftools vcftools curl openjdk-17-jdk-headless
+    python3 python3-pip bwa fastp samtools bcftools vcftools curl openjdk-17-jdk-headless git
+RUN git clone https://bitbucket.org/genomicepidemiology/resfinder_db/ /RESFINDER_DB/
+RUN echo 'export CGE_RESFINDER_RESGENE_DB="/RESFINDER_DB"' >> ~/.bashrc
+RUN apt-get remove --purge git
+RUN apt-get autoremove
+RUN apt-get autoclean
 RUN apt-get clean
 RUN rm -rf /var/lib/apt/lists/*
     

@@ -451,6 +451,7 @@ process mgefind {
     script:
     """
     #!/bin/bash
+    rm -rf /tmp/mge_finder/$fasta
     mefinder find -c $fasta ${fasta}_mge
     if [\$? -ne 0]; then
         echo "Error: MGEFinder failed to run for ${fasta}"

@@ -23,9 +23,9 @@ RUN apt-get install -y --no-install-recommends \
     python3 python3-pip bwa fastp samtools bcftools vcftools curl openjdk-17-jdk-headless git
 RUN git clone https://bitbucket.org/genomicepidemiology/resfinder_db/ /RESFINDER_DB/
 RUN echo 'export CGE_RESFINDER_RESGENE_DB="/RESFINDER_DB"' >> ~/.bashrc
-RUN apt-get remove --purge git
-RUN apt-get autoremove
-RUN apt-get autoclean
+
+RUN apt-get autoremove -y
+RUN apt-get autoclean -y
 RUN apt-get clean
 RUN rm -rf /var/lib/apt/lists/*
     
@@ -36,5 +36,10 @@ RUN curl -s https://get.nextflow.io | bash && \
 # Use pip to install Python packages
 RUN pip3 install --break-system-packages pandas scikit-learn mlxtend biopython resfinder MobileElementFinder && \
     ln -s /usr/bin/python3 /usr/bin/python
-
+RUN apt-get update && apt-get install -y --no-install-recommends ncbi-blast+ && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN pip3 install --break-system-packages seaborn
+# Install SPAdes genome assembler
+RUN apt-get update && apt-get install -y --no-install-recommends spades && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 CMD ["bash"]

@@ -7,16 +7,25 @@ import os
 import threading
 import platform
 import tempfile
+import ctypes
 
 class UnnamedApp(wx.Frame):
     def __init__(self, *args, **kw):
-        frame_style = wx.DEFAULT_FRAME_STYLE & ~(wx.RESIZE_BORDER | wx.MAXIMIZE_BOX)
+        frame_style = wx.DEFAULT_FRAME_STYLE# & ~(wx.RESIZE_BORDER | wx.MAXIMIZE_BOX)
         super(UnnamedApp, self).__init__(*args, **kw, style=frame_style)
         
         self.InitUI()
         self.read_1 = ""
         self.read_2 = ""
         self.init_directories()
+        # Set application icon
+        icon_path = os.path.join(os.path.dirname(__file__), "Bacalyze.ico")
+        if os.path.exists(icon_path):
+            icon = wx.Icon(icon_path, wx.BITMAP_TYPE_ICO)
+            self.SetIcon(icon)
+            if platform.system() == "Windows":
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("BacalyzeApp")
+            
     
     def get_doc_folder(self):
         if platform.system() == "Windows":
@@ -71,10 +80,10 @@ class UnnamedApp(wx.Frame):
         hbox2 = wx.BoxSizer(wx.HORIZONTAL)
         hbox2.Add(wx.StaticText(panel, label="Path to Read1:"), flag=wx.ALIGN_CENTER_VERTICAL, border=8)
         self.read1_path = wx.TextCtrl(panel, size=(300, -1))
-        browse_read1 = wx.Button(panel, label="Browse")
-        browse_read1.Bind(wx.EVT_BUTTON, self.on_browse_read1)
+        self.browse_read1 = wx.Button(panel, label="Browse")
+        self.browse_read1.Bind(wx.EVT_BUTTON, self.on_browse_read1)
         hbox2.Add(self.read1_path, flag=wx.RIGHT, border=8)
-        hbox2.Add(browse_read1)
+        hbox2.Add(self.browse_read1)
         vbox.Add(hbox2, flag=wx.LEFT | wx.TOP, border=10)
 
         hbox3 = wx.BoxSizer(wx.HORIZONTAL)
@@ -139,7 +148,9 @@ class UnnamedApp(wx.Frame):
         self.predict_ARG_checkbox = wx.CheckBox(panel, label="Predict ARGs")
         hbox6.Add(self.predict_ARG_checkbox, wx.ALIGN_CENTER_VERTICAL)
         self.bulk_paired_checkbox = wx.CheckBox(panel, label="Bulk process")
+        self.bulk_paired_checkbox.Bind(wx.EVT_CHECKBOX, self.on_read_type_change)
         hbox6.Add(self.bulk_paired_checkbox, wx.ALIGN_CENTER_VERTICAL)
+        #self.bulk_paired_checkbox.Bind(wx.EVT_CHECKBOX, self.on_browse_read1)
         vbox.Add(hbox6, flag=wx.LEFT | wx.TOP, border=10)
 
         hbox7 = wx.BoxSizer(wx.HORIZONTAL)
@@ -184,8 +195,9 @@ class UnnamedApp(wx.Frame):
 
         # Window settings
         self.SetTitle("UnnamedApp")
-        self.SetSize((800, 800))
+        self.SetSize((640, 550))
         self.Centre()
+    
     
     def on_assembled_genome_change(self, event):
         is_checked = self.assembled_genome_checkbox.IsChecked()
@@ -230,8 +242,33 @@ class UnnamedApp(wx.Frame):
     def on_read_type_change(self, event):
         # Enable or disable Read 2 controls based on the selected read type
         is_paired_end = self.read_type.GetStringSelection() == "Paired-ended"
-        self.read2_path.Enable(is_paired_end)
-        self.browse_read2.Enable(is_paired_end)
+        if not self.bulk_paired_checkbox.IsChecked():
+            self.read2_path.Enable(is_paired_end)
+            self.browse_read2.Enable(is_paired_end)
+        elif self.bulk_paired_checkbox.IsChecked() and is_paired_end:
+            self.read2_path.Enable(False)
+            self.browse_read2.Enable(False)
+            with wx.TextEntryDialog(self, "Enter wild card identifier for forward and reverse paired end reads. Example: {R,F}.fastq;{1,2}.fastq") as textDialog:
+                textDialog.FindWindowById(wx.ID_CANCEL).Disable()
+                if textDialog.ShowModal() == wx.ID_OK:
+                    self.wildcard_input = textDialog.GetValue()
+                    wx.CallAfter(self.output_area.AppendText, f"User input: {self.wildcard_input}\n")
+                if self.wildcard_input == "":
+                    wx.CallAfter(self.output_area.AppendText, "No wild card identifier provided. Please provide a valid identifier.\n")
+                    self.read2_path.Enable(True)
+                    self.browse_read2.Enable(True)
+                    self.bulk_paired_checkbox.SetValue(False)
+        elif self.bulk_paired_checkbox.IsChecked() and not is_paired_end:
+            with wx.TextEntryDialog(self, "Enter wild card identifier for Input files. For example: *.fna;*.fastq") as textDialog:
+                textDialog.FindWindowById(wx.ID_CANCEL).Disable()
+                if textDialog.ShowModal() == wx.ID_OK:
+                    self.wildcard_input = textDialog.GetValue()
+                    wx.CallAfter(self.output_area.AppendText, f"User input: {self.wildcard_input}\n")
+                if self.wildcard_input == "":
+                    wx.CallAfter(self.output_area.AppendText, "No wild card identifier provided. Please provide a valid identifier.\n")
+                    self.read2_path.Enable(True)
+                    self.browse_read2.Enable(True)
+                    self.bulk_paired_checkbox.SetValue(False)
         
     def on_species_change(self, event):
         is_custom = self.species.GetStringSelection() == "Custom"
@@ -246,10 +283,19 @@ class UnnamedApp(wx.Frame):
 
     # Method to open file dialog for Read 1
     def on_browse_read1(self, event):
-        with wx.FileDialog(self, "Choose Read1 file", wildcard="All files (*.*)|*.*", style=wx.FD_OPEN) as fileDialog:
-            if fileDialog.ShowModal() == wx.ID_OK:
-                path = fileDialog.GetPath()
-                self.read1_path.SetValue(path.replace('\\', '/'))
+        if not self.bulk_paired_checkbox.IsChecked():
+            with wx.FileDialog(self, "Choose Read1 file", wildcard="All files (*.*)|*.*", style=wx.FD_OPEN) as fileDialog:
+                if fileDialog.ShowModal() == wx.ID_OK:
+                    path = fileDialog.GetPath()
+                    self.read1_path.SetValue(path.replace('\\', '/'))
+        elif self.bulk_paired_checkbox.IsChecked():
+            with wx.DirDialog(self, "Choose directory with fastq files", style=wx.DD_DEFAULT_STYLE) as dirDialog:
+                if dirDialog.ShowModal() == wx.ID_OK:
+                    path = dirDialog.GetPath()
+                    self.read1_path.SetValue(path.replace('\\', '/'))
+                    self.read2_path.SetValue(path.replace('\\', '/'))
+                    self.browse_read2.Enable(False)
+                    self.read2_path.Enable(False)
 
     # Method to open file dialog for Read 2
     def on_browse_read2(self, event):
@@ -308,6 +354,7 @@ class UnnamedApp(wx.Frame):
 
                 try:
                     import Bio
+                    import ctypes
                 except ImportError:
                     missing_dependencies.append("biopython")
 
@@ -329,6 +376,9 @@ class UnnamedApp(wx.Frame):
         end_type = "P" if self.read_type.GetStringSelection() == "Paired-ended" else "S"
         self.read_1 = self.read1_path.GetValue().replace('\\', '/')
         self.read_2 = self.read2_path.GetValue().replace('\\', '/') if end_type == "P" else ""
+        if self.bulk_paired_checkbox.IsChecked() and end_type == "P":
+            self.read_2 = ""
+        
         
         species_string = self.species.GetStringSelection()
         species_dict = {
@@ -342,7 +392,7 @@ class UnnamedApp(wx.Frame):
         self.custom_label_path = self.label_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
         self.custom_ref_path = self.ref_path.GetValue().replace('\\','/') if species_string == "Custom" else ""
 
-        if not os.path.exists(self.read_1) or (end_type == "P" and not os.path.exists(self.read_2)):
+        if not os.path.exists(self.read_1) or ((end_type == "P" and not self.bulk_paired_checkbox.IsChecked()) and not os.path.exists(self.read_2)):
             wx.CallAfter(self.output_area.AppendText, "Invalid path(s) for reads. Please verify the file paths.\n")
             wx.CallAfter(self.run_btn.Enable)  # Re-enable the Run button
             return
@@ -357,7 +407,14 @@ class UnnamedApp(wx.Frame):
         custom_label_name = os.path.basename(self.custom_label_path) if self.custom_label_path else ""
         custom_ref_name = os.path.basename(self.custom_ref_path) if self.custom_label_path else ""
         
-        shutil.copy(self.read_1, input_directory)
+        if os.path.isdir(self.read_1):
+            for item in os.listdir(self.read_1):
+                s = os.path.join(self.read_1, item)
+                d = os.path.join(input_directory, item)
+                if os.path.isfile(s):
+                    shutil.copy2(s, d)
+        else:
+            shutil.copy(self.read_1, input_directory)
         if self.read_2:
             shutil.copy(self.read_2, input_directory)
         
@@ -401,8 +458,16 @@ class UnnamedApp(wx.Frame):
         pca_file = f"/workspace/custom/{custom_pca_name}" if custom_pca_name else f"/workspace/predefined/generalisers/{species_selection}.pkl"
         labels_file = f"/workspace/custom/{custom_label_name}" if custom_label_name else f"/workspace/predefined/label_lists/{species_selection}.txt"
         annotation_file = f"/workspace/predefined/reference_annotations/{species_selection}.bed"
-        input_1_name = os.path.basename(self.read_1)
-        input_1 = f"{nextflow_input}{input_1_name}"
+        if os.path.isdir(self.read_1) and (self.assembled_genome_checkbox.IsChecked() or self.read_type.GetStringSelection() == "Single-ended"):
+            input_1_name = self.wildcard_input
+            input_1 = f'\\"$(ls {nextflow_input}/{input_1_name})\\"'
+            #input_1 = f"\\"f"\""f"$(ls {nextflow_input}{input_1_name})\\""\""
+        elif os.path.isdir(self.read_1) and self.read_type.GetStringSelection() == "Paired-ended":
+            input_1_name = self.wildcard_input
+            input_1 = f'\\"{nextflow_input}{input_1_name}\\"'
+        else:
+            input_1_name = os.path.basename(self.read_1)
+            input_1 = f"{nextflow_input}{input_1_name}"
         input_2 = f"{nextflow_input}{os.path.basename(self.read_2)}" if self.read_2 else ""
 
         second_read = f"--read2 {input_2}" if input_2 else ""
@@ -411,8 +476,10 @@ class UnnamedApp(wx.Frame):
         annotation_mode = "--annotation yes" if self.annotate_checkbox.IsChecked() and species_selection != "custom" else ""
         
         quality_filter = '15' if self.qual.GetValue() == '' else self.qual.GetValue()
-        
-        reads_param = f" --read1 {input_1} {second_read}"
+        if self.read_type.GetStringSelection() == "Single-ended" or self.assembled_genome_checkbox.IsChecked():
+            reads_param = f" --read1 {input_1} {second_read}"
+        elif self.read_type.GetStringSelection() == "Paired-ended" and self.bulk_paired_checkbox.IsChecked():
+            reads_param = f" --reads {input_1} {second_read}"
 
         if species_selection == "" or species_selection == "custom":
             self.arg_species = '--species other'
@@ -420,7 +487,7 @@ class UnnamedApp(wx.Frame):
             self.arg_species = f'--species {species_selection}'
 
         command_run = (
-            f"docker run -it -v {self.doc}/Unnamed/main/:/workspace kani nextflow run /workspace/script/main.nf"
+            f"docker run --rm -it -v {self.doc}/Unnamed/main/:/workspace kani bash -c \" nextflow run /workspace/script/main.nf"
             f" --ref {reference_sequence} {reads_param}"
             f" --model {model_file}"
             f" --pca {pca_file}"
@@ -431,8 +498,10 @@ class UnnamedApp(wx.Frame):
             f" --outdir /workspace/output/"
             f" --qual {quality_filter}"
             f" {self.arg_species}"
-            f" --assembled {pipeline_assembled}"
+            f" --assembled {pipeline_assembled}\""
         )
+        wx.CallAfter(self.output_area.AppendText, f"\nRunning command:\n{command_run}\n")
+        print(command_run)
 
         # Run the command and track the time
         start_time = time.time()
@@ -494,6 +563,7 @@ if __name__ == '__main__':
         "onefile_%d_splash_feedback.tmp" % int(os.environ["NUITKA_ONEFILE_PARENT"]),
         )
 
-    if os.path.exists(splash_filename):
-        os.unlink(splash_filename)
+        if os.path.exists(splash_filename):
+            os.unlink(splash_filename)
     main()
+

@@ -1,7 +1,7 @@
-# Unnamed
+# Bacalyze - BACterial genome anALYZEr
 
 ## Introduction
-Unnamed is a powerful tool designed to analyse bacterial genomic nucleotide sequences. The tool integrates several opensource tools for automated end-to-end processing. The tool can find Single Nucleotide Polymorphisms, k-mer frequencies, Mobile Genetic Elements (MGEs), Antibiotic Resistance Genes (ARGs), co-occurrence of MGEs, association between ARGs & MGEs, de novo assembly of raw reads, perform de novo annotation of bacterial genomes, predict antibiotic resistance phenotypes and provide insightful visualisations of the analyses . It helps users to perform all the above bioinformatics analysis of bacterial genomes effectively. This tool can parallelly process and analyse multiple genomic samples at once simultaneously .
+Bacalyze is a powerful tool designed to analyse bacterial genomic nucleotide sequences. The tool integrates several opensource tools for automated end-to-end processing. The tool can find Single Nucleotide Polymorphisms, k-mer frequencies, Mobile Genetic Elements (MGEs), Antibiotic Resistance Genes (ARGs), co-occurrence of MGEs, association between ARGs & MGEs, de novo assembly of raw reads, perform de novo annotation of bacterial genomes, predict antibiotic resistance phenotypes and provide insightful visualisations of the analyses . It helps users to perform all the above bioinformatics analysis of bacterial genomes effectively. This tool can parallelly process and analyse multiple genomic samples at once simultaneously .
 
 This tool comes with a command line interface as well as a graphical user interface. The graphical user interface simply runs the commands in the shell as an interpreter instead of the user needing to type in the commands. The tool relies on NextFlow pipeline which automates the processes. The tool can be scaled up to any level thanks to the scalability of NextFlow
 

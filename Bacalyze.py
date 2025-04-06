@@ -42,7 +42,6 @@ class BacalyzeApp(wx.Frame):
         # Define paths
         self.doc = self.get_doc_folder()
         self.input_directory = f"{self.doc}/Bacalyze/main/input/"
-        self.current_date_time = time.strftime("%d%m%Y%H%M%S", time.localtime())
         self.output_directory = f"{self.doc}/Bacalyze/main/output/"
         self.custom_directory = f"{self.doc}/Bacalyze/main/custom/"
         
@@ -399,6 +398,7 @@ class BacalyzeApp(wx.Frame):
             wx.CallAfter(self.output_area.AppendText, "Invalid path(s) for reads. Please verify the file paths.\n")
             wx.CallAfter(self.run_btn.Enable)  # Re-enable the Run button
             return
+        self.current_date_time = time.strftime("%d%m%Y%H%M%S", time.localtime())
 
         # Set input and output directories
         input_directory = f"{self.doc}/Bacalyze/main/input/"
@@ -488,6 +488,7 @@ class BacalyzeApp(wx.Frame):
             self.arg_species = '--species other'
         else:
             self.arg_species = f'--species {species_selection}'
+        
 
         command_run = (
             f"docker run --rm -it -v {self.doc}/Bacalyze/main/:/workspace kani bash -c \" nextflow run /workspace/script/main.nf"

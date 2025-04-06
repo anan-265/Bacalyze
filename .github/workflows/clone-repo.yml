@@ -1,0 +1,42 @@
+name: Sync to Mirror Repository
+
+on:
+  push: 
+    branches:
+      - main 
+
+jobs:
+  sync-to-mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      
+      - name: Verify repository to prevent recursion
+        run: |
+          if [[ "${{ github.repository_owner }}" == "bic-sastra" && "${{ github.event.repository.name }}" == "Bacalyze" ]]; then
+            echo "This workflow is not running in the original repository. Exiting to prevent recursion."
+            exit 0
+          fi
+
+      # Step 2: Checkout the original repository
+      - name: Checkout original repository
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false 
+          fetch-depth: 0 
+
+      # Step 3: Add mirror repository as a remote
+      - name: Add mirror repository
+        env:
+          MIRROR_PAT: ${{secrets.MIRROR_PAT}}
+        run: |
+          git remote add mirror https://$MIRROR_PAT@github.com/bic-sastra/Bacalyze.git
+          git fetch mirror
+
+      # Step 4: Push changes to the mirror repository
+      - name: Push to mirror repository
+        env:
+          MIRROR_PAT: ${{secrets.MIRROR_PAT}}
+        run: |
+          echo "PAT: $MIRROR_PAT"
+          git push https://$MIRROR_PAT@github.com/bic-sastra/Bacalyze.git HEAD:main

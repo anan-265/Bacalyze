@@ -57,5 +57,7 @@ You can use the docker image to invoke the pipeline, and mount the local directo
 
 You can also install all the dependencies manually instead of using docker. But it is tested only in Linux and WSL. It cannot run natively in Windows. While NextFlow can run natively in Mac, the pipelines functionalities directly depend on the tools integrated, and their availability on Mac.
 
+Please refer to **Bacalyze_manual.pdf** provided in the repository for more information. 
+
 ## Acknowledgement
 I would like to express my deepest gratitude to Professor **Vigneshwar Ramakrishnan** for his indispensable support and guidance throughout this project. The project wouldn't have been a possibility without his esteemed mentorship.

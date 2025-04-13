@@ -1,5 +1,5 @@
 nextflow.enable.dsl=2
-
+params.txt_in = ''
 params.ref = ''
 params.read1 = ''
 params.read2 = ''
@@ -324,7 +324,7 @@ process kmer {
 }
 
 process assemble {
-    // publishDir params.outdir, mode: 'copy'
+    publishDir params.outdir, mode: 'copy'
     input:
     tuple path(read1), path(read2)
     output:
@@ -337,7 +337,7 @@ process assemble {
 }
 
 process assemble_single_end {
-	// publishDir params.outdir, mode: 'copy'
+	 publishDir params.outdir, mode: 'copy'
     input:
     path reads
     output:
@@ -389,14 +389,15 @@ process kmer_fasta {
 }
 
 process genomeAnnotation {
-    // publishDir params.outdir, mode: 'copy'
+       publishDir params.outdir, mode: 'copy'
 	input:
 	path fasta
 	output:
-	path "*.gff"
+	path "${fasta}*"
 	script:
 	"""
-	prokka --outdir ./ --prefix $fasta $fasta --force
+	source ~/.bashrc
+	prokka --outdir ./ --prefix $fasta $fasta --force --cpus 0
 	sed -i '/##FASTA/,\$d; /^#/d' ${fasta}.gff
 	"""
 }
@@ -442,7 +443,7 @@ process mge_association {
 process mgefind {
     publishDir "${params.outdir}/mge", mode: 'copy', mkdirs: true
     errorStrategy 'ignore'
-    debug true
+    //debug true
     input:
     path fasta
     output:
@@ -460,9 +461,11 @@ process mgefind {
 }
 
 process argFind {
+
      publishDir "${params.outdir}/arg", mode: 'copy', mkdirs: true
-     //errorStrategy 'ignore'
+	errorStrategy 'ignore'
 //     maxRetries 3
+	//debug true
     input:
     path fasta
     output:
@@ -492,7 +495,7 @@ process argAssociation {
     publishDir "${params.outdir}/associations", mode: 'copy', mkdirs: true
 	errorStrategy 'ignore'
     debug true
-    cache true
+    //cache true
     input:
     path arg
     path mge
@@ -1447,7 +1450,18 @@ workflow process_all_single_end {
 
 workflow arg_mge_association_assembled {
     println "Workflow mode: To identify ARGs and MGEs associated with genes and ARGs (Assembled reads)"
+    def isTxtInput = params.txt_in == "yes"
+    if (isTxtInput){
+        println"Reading input paths from the given text file. Make sure that you have given full path of the files"
+        input_channel = Channel
+	    .fromPath(params.read1)
+    	.flatMap { file ->
+    	    file.text.readLines() // Read each line from the file
+    	}
+    } else {
+    println "Reading input paths direcly from ls command"
     input_channel = Channel.from(params.read1.split(/\s+/))
+    }
     mgefind(input_channel)
     argFind(input_channel)
     argAssociation(argFind.out.collect(), mgefind.out)
@@ -1585,8 +1599,8 @@ workflow process_all_assembled {
 }
 
 workflow {
-    def isPairedEnd = params.read2 != "" || params.reads != ""
-    def isSingleEnd = params.read2 == "" && params.reads == ""
+    def isPairedEnd = params.read2 != "" || params.reads != "" && params.assembled != "yes"
+    def isSingleEnd = params.read2 == "" && params.reads == "" && params.assembled != "yes"
     def isAnnotation = params.annotation == "yes"
     def isSnpMode = params.mode == "snp"
     def isKmerMode = params.mode == "kmer"
@@ -1598,6 +1612,7 @@ workflow {
     def isArgMode = params.mode == "arg"
     def isAssembled = params.assembled == "yes"
     def isNoPredict = params.mode == "snp-no-predict"
+    def isTxtInput = params.txt_in == "yes"
 
     if (isSnpMode) {
         if (isSingleEnd) {
@@ -1630,11 +1645,14 @@ workflow {
             assembly()
         }
     } else if (isGenomeAnnotationMode) {
-        if (isSingleEnd) {
-            genome_annotation_single_end()
-        } else {
-            genome_annotation_paired_end()
+    	if (isAssembled) {
+        genome_annotation_assembled()
         }
+        else if (isSingleEnd) {
+            genome_annotation_single_end()
+        } else if (isPairedEnd) {
+            genome_annotation_paired_end()
+        } 
     } else if (isMgeMode) {
         if (isSingleEnd) {
             mge_single_end()
@@ -1656,7 +1674,11 @@ workflow {
             arg_mge_association()
         }
     } else if (isArgMode) {
+        if (isAssembled) {
+        arg_assembled()
+        } else {
         arg()
+        }
     } else if (isAssembled) {
         if (isSnpMode) {
             if (isAnnotation) {
@@ -1668,8 +1690,6 @@ workflow {
             kmer_assembled()
         } else if (isAssembleMode) {
             println "Assemble mode is not applicable for assembled reads"
-        } else if (isGenomeAnnotationMode) {
-            genome_annotation_assembled()
         } else if (isMgeMode) {
             mge_assembled()
         } else if (isArgMgeMode) {

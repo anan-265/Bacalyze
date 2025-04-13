@@ -19,27 +19,39 @@ FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
-RUN apt-get install -y --no-install-recommends \
-    python3 python3-pip bwa fastp samtools bcftools vcftools curl openjdk-17-jdk-headless git
-RUN git clone https://bitbucket.org/genomicepidemiology/resfinder_db/ /RESFINDER_DB/
-RUN echo 'export CGE_RESFINDER_RESGENE_DB="/RESFINDER_DB"' >> ~/.bashrc
 
-RUN apt-get autoremove -y
-RUN apt-get autoclean -y
-RUN apt-get clean
-RUN rm -rf /var/lib/apt/lists/*
-    
-# Download and install Nextflow
+RUN apt-get install -y --no-install-recommends \
+    python3 python3-pip bwa fastp samtools bcftools vcftools curl openjdk-17-jdk-headless git ncbi-blast+ spades libdatetime-perl libxml-simple-perl libdigest-md5-perl git default-jre bioperl cpanminus prokka
+
+RUN apt install -y wget && wget http://mirrors.kernel.org/ubuntu/pool/main/libi/libidn/libidn11_1.33-2.2ubuntu2_amd64.deb && apt install ./libidn11_1.33-2.2ubuntu2_amd64.deb && rm ./libidn11_1.33-2.2ubuntu2_amd64.deb 
+
+RUN git clone https://bitbucket.org/genomicepidemiology/resfinder_db/ /RESFINDER_DB/
+
 RUN curl -s https://get.nextflow.io | bash && \
     mv nextflow /usr/local/bin/
 
-# Use pip to install Python packages
-RUN pip3 install --break-system-packages pandas scikit-learn mlxtend biopython resfinder MobileElementFinder && \
+RUN pip3 install --break-system-packages pandas scikit-learn mlxtend biopython resfinder MobileElementFinder seaborn && \
     ln -s /usr/bin/python3 /usr/bin/python
-RUN apt-get update && apt-get install -y --no-install-recommends ncbi-blast+ && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN pip3 install --break-system-packages seaborn
-# Install SPAdes genome assembler
-RUN apt-get update && apt-get install -y --no-install-recommends spades && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN cpan Bio::Perl && \
+git clone https://github.com/tseemann/prokka.git $HOME/prokka
+
+RUN cpanm Bio::SearchIO::hmmer3
+
+RUN mkdir -p /root/.local/lib/prokka/db/
+
+RUN cp -r $HOME/prokka/db/* /root/.local/lib/prokka/db/ #&& rm -rf $HOME/prokka/
+
+RUN echo 'export CGE_RESFINDER_RESGENE_DB="/RESFINDER_DB"' >> ~/.bashrc
+
+RUN prokka --setupdb
+
+RUN apt-get autoremove -y
+
+RUN apt-get autoclean -y
+
+RUN apt-get clean
+
+RUN rm -rf /var/lib/apt/lists/*
+
 CMD ["bash"]

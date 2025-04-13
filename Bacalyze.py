@@ -463,7 +463,7 @@ class BacalyzeApp(wx.Frame):
         annotation_file = f"/workspace/predefined/reference_annotations/{species_selection}.bed"
         if os.path.isdir(self.read_1) and (self.assembled_genome_checkbox.IsChecked() or self.read_type.GetStringSelection() == "Single-ended"):
             input_1_name = self.wildcard_input
-            input_1 = f'\\"$(ls {nextflow_input}/{input_1_name})\\"'
+            input_1 = f'\\"\\$(ls {nextflow_input}{input_1_name})\\"'
             #input_1 = f"\\"f"\""f"$(ls {nextflow_input}{input_1_name})\\""\""
         elif os.path.isdir(self.read_1) and self.read_type.GetStringSelection() == "Paired-ended":
             input_1_name = self.wildcard_input
@@ -474,15 +474,17 @@ class BacalyzeApp(wx.Frame):
         input_2 = f"{nextflow_input}{os.path.basename(self.read_2)}" if self.read_2 else ""
 
         second_read = f"--read2 {input_2}" if input_2 else ""
-        
+        #print(input_1_name)
+        #print(input_1)
         # Check if the annotation checkbox is checked
         annotation_mode = "--annotation yes" if self.annotate_checkbox.IsChecked() and species_selection != "custom" else ""
         
         quality_filter = '15' if self.qual.GetValue() == '' else self.qual.GetValue()
         if self.read_type.GetStringSelection() == "Single-ended" or self.assembled_genome_checkbox.IsChecked():
-            reads_param = f" --read1 {input_1} {second_read}"
+            reads_param = f" --read1 {input_1}"
         elif self.read_type.GetStringSelection() == "Paired-ended" and self.bulk_paired_checkbox.IsChecked():
             reads_param = f" --reads {input_1} {second_read}"
+        #print(reads_param)
 
         if species_selection == "" or species_selection == "custom":
             self.arg_species = '--species other'
